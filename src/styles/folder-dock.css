@@ -1,0 +1,150 @@
+.dock-item {
+  position: relative;
+  display: grid;
+  place-items: center;
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+
+.dock-item > a {
+  display: grid;
+  place-items: center;
+}
+
+.dock-editing .dock-item {
+  cursor: grab;
+  animation: dock-wiggle 420ms ease-in-out infinite alternate;
+}
+
+.dock-editing .dock-item:nth-child(even) {
+  animation-delay: -180ms;
+}
+
+.dock-item.dragging {
+  opacity: 0.35;
+}
+
+.dock-item.drop-target {
+  transform: translateY(-10px) scale(1.12);
+}
+
+.dock-item.drop-target::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 26px;
+  height: 3px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateX(-50%);
+}
+
+.dock-remove {
+  position: absolute;
+  z-index: 8;
+  top: -7px;
+  right: -7px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 50%;
+  color: white;
+  background: #e24f5f;
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.25);
+}
+
+.dock-remove svg {
+  width: 11px;
+}
+
+@keyframes dock-wiggle {
+  from { rotate: -1.2deg; }
+  to { rotate: 1.2deg; }
+}
+
+.folder-header > div {
+  min-width: 0;
+}
+
+.folder-header small {
+  display: block;
+  margin-top: 3px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11px;
+}
+
+.folder-grid-item {
+  position: relative;
+  min-width: 0;
+  border-radius: 18px;
+  transition: transform 160ms ease, background 160ms ease, opacity 160ms ease;
+}
+
+.folder-grid-item > a {
+  min-height: 104px;
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: inherit;
+  text-align: center;
+}
+
+.folder-grid-item > a > small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-editing .folder-grid-item {
+  cursor: grab;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.folder-grid-item.dragging {
+  opacity: 0.32;
+}
+
+.folder-grid-item.drop-target {
+  transform: scale(1.08);
+  background: rgba(102, 143, 255, 0.22);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+}
+
+.folder-extract {
+  position: absolute;
+  z-index: 6;
+  top: 2px;
+  right: 2px;
+  width: 23px;
+  height: 23px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 50%;
+  color: white;
+  background: rgba(229, 75, 91, 0.94);
+  box-shadow: 0 5px 13px rgba(0, 0, 0, 0.22);
+}
+
+.folder-extract svg {
+  width: 12px;
+}
+
+@media (max-width: 640px) {
+  .folder-grid-item > a {
+    min-height: 92px;
+  }
+
+  .dock-remove {
+    top: -5px;
+    right: -5px;
+  }
+}
