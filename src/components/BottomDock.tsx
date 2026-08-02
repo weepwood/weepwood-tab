@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Shortcut } from '../core/types'
+import type { DragEvent, Shortcut } from '../core/types'
 import { Icon } from './Icon'
 import { ShortcutIcon } from './ShortcutIcon'
 import '../styles/folder-dock.css'
@@ -24,7 +24,7 @@ export function BottomDock({ visible, magnify, editMode, shortcuts, shortcutIds,
   if (!visible) return null
   const items = shortcutIds.map((id) => shortcuts.find((shortcut) => shortcut.id === id)).filter(Boolean) as Shortcut[]
 
-  const acceptExternalShortcut = (event: React.DragEvent) => {
+  const acceptExternalShortcut = (event: DragEvent<HTMLElement>) => {
     const shortcutId = event.dataTransfer.getData('application/x-weepwood-shortcut')
     if (!shortcutId) return false
     event.preventDefault()
