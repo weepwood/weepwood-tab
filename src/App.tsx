@@ -1,162 +1,183 @@
 import { useMemo, useState } from 'react'
-import type { Shortcut } from './core/types'
+import type { CSSProperties } from 'react'
+import type { DesktopItem, Shortcut, WeatherSnapshot, WidgetSize, WidgetType } from './core/types'
 import { workspaces } from './data/defaults'
 import { useClock } from './hooks/useClock'
 import { usePersistentState } from './hooks/usePersistentState'
 import { SearchBar } from './components/SearchBar'
-import { ShortcutGrid } from './components/ShortcutGrid'
-import { CalendarWidget } from './components/CalendarWidget'
-import { TaskWidget } from './components/TaskWidget'
-import { FocusWidget } from './components/FocusWidget'
-import { NotesWidget } from './components/NotesWidget'
-import { AddShortcutModal } from './components/AddShortcutModal'
-import { SettingsDrawer } from './components/SettingsDrawer'
+import { SideRail } from './components/SideRail'
+import { BottomDock } from './components/BottomDock'
+import { DesktopCanvas } from './components/DesktopCanvas'
+import { AddPanel } from './components/AddPanel'
+import { SettingsPanel } from './components/SettingsPanel'
 import { Icon } from './components/Icon'
 import './styles/app.css'
 
-function greeting() {
-  const hour = new Date().getHours()
-  if (hour < 6) return '夜深了'
-  if (hour < 11) return '早上好'
-  if (hour < 14) return '中午好'
-  if (hour < 18) return '下午好'
-  return '晚上好'
-}
+const wallpaperMap = {
+  meadow: './wallpapers/meadow.svg',
+  mist: './wallpapers/mist.svg',
+  sunset: './wallpapers/sunset.svg',
+  aurora: './wallpapers/aurora.svg',
+} as const
 
 export default function App() {
   const { state, setState, reset } = usePersistentState()
-  const [editMode, setEditMode] = useState(false)
-  const [showAdd, setShowAdd] = useState(false)
-  const [showSettings, setShowSettings] = useState(false)
   const { now, time, date } = useClock(state.settings.showSeconds)
-  const currentWorkspace = workspaces.find((item) => item.id === state.activeWorkspace) ?? workspaces[0]!
-  const visibleShortcuts = useMemo(
-    () => state.shortcuts.filter((item) => item.workspaceId === state.activeWorkspace),
-    [state.shortcuts, state.activeWorkspace],
+  const [editMode, setEditMode] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
+  const [settingsSection, setSettingsSection] = useState<'general' | 'wallpaper' | null>(null)
+
+  const currentWorkspace = workspaces.find((workspace) => workspace.id === state.activeWorkspace) ?? workspaces[0]!
+  const workspaceItems = useMemo(
+    () => state.desktopItems.filter((item) => item.workspaceId === state.activeWorkspace),
+    [state.desktopItems, state.activeWorkspace],
   )
 
-  const updateShortcuts = (next: Shortcut[]) => setState((current) => ({ ...current, shortcuts: next }))
+  const wallpaper = state.settings.wallpaper === 'custom'
+    ? state.settings.customWallpaper
+    : wallpaperMap[state.settings.wallpaper]
 
   const reorder = (sourceId: string, targetId: string) => {
-    const sourceIndex = state.shortcuts.findIndex((item) => item.id === sourceId)
-    const targetIndex = state.shortcuts.findIndex((item) => item.id === targetId)
-    if (sourceIndex < 0 || targetIndex < 0) return
-
-    const next = [...state.shortcuts]
-    const [moved] = next.splice(sourceIndex, 1)
-    if (!moved) return
-    next.splice(targetIndex, 0, moved)
-    updateShortcuts(next)
+    setState((current) => {
+      const sourceIndex = current.desktopItems.findIndex((item) => item.id === sourceId)
+      const targetIndex = current.desktopItems.findIndex((item) => item.id === targetId)
+      if (sourceIndex < 0 || targetIndex < 0) return current
+      const next = [...current.desktopItems]
+      const [moved] = next.splice(sourceIndex, 1)
+      if (!moved) return current
+      next.splice(targetIndex, 0, moved)
+      return { ...current, desktopItems: next }
+    })
   }
 
+  const removeItem = (item: DesktopItem) => {
+    setState((current) => ({
+      ...current,
+      desktopItems: current.desktopItems.filter((entry) => entry.id !== item.id),
+      widgets: item.kind === 'widget' ? current.widgets.filter((widget) => widget.id !== item.refId) : current.widgets,
+    }))
+  }
+
+  const addShortcut = (shortcut: Shortcut) => {
+    setState((current) => ({
+      ...current,
+      shortcuts: [...current.shortcuts, shortcut],
+      desktopItems: [...current.desktopItems, {
+        id: `di-${shortcut.id}`,
+        workspaceId: shortcut.workspaceId,
+        kind: 'shortcut',
+        refId: shortcut.id,
+      }],
+    }))
+  }
+
+  const addWidget = (type: WidgetType, size: WidgetSize) => {
+    const id = crypto.randomUUID()
+    setState((current) => ({
+      ...current,
+      widgets: [...current.widgets, { id, workspaceId: current.activeWorkspace, type, size }],
+      desktopItems: [...current.desktopItems, {
+        id: `di-${id}`,
+        workspaceId: current.activeWorkspace,
+        kind: 'widget',
+        refId: id,
+      }],
+    }))
+  }
+
+  const updateWeather = (weather: WeatherSnapshot) => setState((current) => ({ ...current, weather }))
+
   return (
-    <div className={`app theme-${state.settings.theme} ${state.settings.glass ? 'glass-enabled' : 'solid-enabled'}`}>
-      <div className="ambient ambient-one" />
-      <div className="ambient ambient-two" />
-      <div className="noise" />
+    <div
+      className={`app-shell theme-${state.settings.theme} ${state.settings.glass ? 'glass-on' : 'glass-off'} ${editMode ? 'edit-mode' : ''}`}
+      style={{
+        '--wallpaper-image': wallpaper ? `url("${wallpaper}")` : 'none',
+        '--wallpaper-blur': `${state.settings.wallpaperBlur}px`,
+        '--wallpaper-shade': `${state.settings.wallpaperShade / 100}`,
+      } as CSSProperties}
+    >
+      <div className="wallpaper-layer" />
+      <div className="wallpaper-overlay" />
 
-      <header className="app-header">
-        <a className="brand-lockup" href="./" aria-label="Weepwood Tab 首页">
-          <span className="brand-mark">W</span>
-          <span className="brand-copy"><strong>Weepwood Tab</strong><small>{currentWorkspace.name}空间</small></span>
-        </a>
+      <SideRail
+        visible={state.settings.showLeftRail}
+        editMode={editMode}
+        workspaces={workspaces}
+        activeWorkspace={state.activeWorkspace}
+        onWorkspaceChange={(activeWorkspace) => setState((current) => ({ ...current, activeWorkspace }))}
+        onAdd={() => setAddOpen(true)}
+        onWallpaper={() => setSettingsSection('wallpaper')}
+        onSettings={() => setSettingsSection('general')}
+        onEdit={() => setEditMode((value) => !value)}
+      />
 
-        <nav className="workspace-tabs" aria-label="工作区">
-          {workspaces.map((workspace) => (
-            <button
-              key={workspace.id}
-              className={state.activeWorkspace === workspace.id ? 'active' : ''}
-              onClick={() => setState((current) => ({ ...current, activeWorkspace: workspace.id }))}
-            >
-              <span className="workspace-icon">{workspace.icon}</span>
-              <span>{workspace.name}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div className="header-actions">
-          <button
-            className={`icon-button ${editMode ? 'active' : ''}`}
-            onClick={() => setEditMode((value) => !value)}
-            aria-label={editMode ? '完成快捷方式编辑' : '编辑快捷方式'}
-            title={editMode ? '完成编辑' : '编辑快捷方式'}
-          >
-            <Icon name={editMode ? 'check' : 'edit'} />
-          </button>
-          <button className="icon-button" onClick={() => setShowSettings(true)} aria-label="设置" title="设置">
-            <Icon name="settings" />
-          </button>
+      <header className="desktop-topbar">
+        <div className="workspace-status">
+          <span>{currentWorkspace.icon}</span>
+          <div><strong>{currentWorkspace.name}</strong><small>{currentWorkspace.hint}</small></div>
         </div>
+        <SearchBar
+          shortcuts={state.shortcuts}
+          engine={state.settings.searchEngine}
+          showSuggestions={state.settings.showSearchSuggestions}
+          onEngineChange={(searchEngine) => setState((current) => ({ ...current, settings: { ...current.settings, searchEngine } }))}
+        />
+        <div className="time-status"><strong>{time}</strong><small>{date}</small></div>
       </header>
 
-      <main className="main-content">
-        <section className="hero" aria-labelledby="hero-time">
-          <div className="hero-copy">
-            <span className="hero-kicker">{greeting()} · {currentWorkspace.name}</span>
-            <h1 id="hero-time">{time}</h1>
-            <p>{date} · {currentWorkspace.hint}</p>
-          </div>
-          <SearchBar shortcuts={state.shortcuts} />
-        </section>
-
-        <ShortcutGrid
-          shortcuts={visibleShortcuts}
+      <main className={`desktop-stage ${state.settings.showLeftRail ? 'with-rail' : ''}`}>
+        <DesktopCanvas
+          workspaceId={state.activeWorkspace}
+          items={workspaceItems}
+          shortcuts={state.shortcuts}
+          folders={state.folders}
+          widgets={state.widgets}
+          tasks={state.tasks}
+          notes={state.notes[state.activeWorkspace]}
+          weather={state.weather}
+          now={now}
           editMode={editMode}
-          compact={state.settings.compactShortcuts}
-          onAdd={() => setShowAdd(true)}
-          onDelete={(id) => updateShortcuts(state.shortcuts.filter((item) => item.id !== id))}
+          iconShape={state.settings.iconShape}
           onReorder={reorder}
+          onRemoveItem={removeItem}
+          onTasksChange={(tasks) => setState((current) => ({ ...current, tasks }))}
+          onNotesChange={(value) => setState((current) => ({ ...current, notes: { ...current.notes, [current.activeWorkspace]: value } }))}
+          onWeatherChange={updateWeather}
+          onAdd={() => setAddOpen(true)}
         />
-
-        <section className="overview-section">
-          <div className="overview-heading">
-            <div>
-              <span className="eyebrow">DAILY OVERVIEW</span>
-              <h2>今日概览</h2>
-            </div>
-            <p>把需要关注的信息收在一处，不打扰上方的快速访问。</p>
-          </div>
-
-          <div className="dashboard-grid">
-            <TaskWidget tasks={state.tasks} onChange={(tasks) => setState((current) => ({ ...current, tasks }))} />
-            <FocusWidget />
-            <CalendarWidget now={now} />
-            <NotesWidget
-              value={state.notes[state.activeWorkspace]}
-              onChange={(value) => setState((current) => ({
-                ...current,
-                notes: { ...current.notes, [current.activeWorkspace]: value },
-              }))}
-            />
-          </div>
-        </section>
-
-        <footer>
-          <span>本地优先 · 数据仅保存在当前浏览器</span>
-          <a href="https://github.com/weepwood/weepwood-tab" target="_blank" rel="noreferrer">
-            GitHub <Icon name="external" />
-          </a>
-        </footer>
       </main>
 
-      {showAdd && (
-        <AddShortcutModal
-          workspaceId={state.activeWorkspace}
-          onClose={() => setShowAdd(false)}
-          onAdd={(shortcut) => updateShortcuts([...state.shortcuts, shortcut])}
-        />
+      {editMode && (
+        <button className="edit-finish" onClick={() => setEditMode(false)}><Icon name="check" />完成编辑</button>
       )}
-      {showSettings && (
-        <SettingsDrawer
+
+      <BottomDock
+        visible={state.settings.showDock}
+        magnify={state.settings.dockMagnify}
+        shortcuts={state.shortcuts}
+        shortcutIds={state.dockShortcutIds}
+        iconShape={state.settings.iconShape}
+        onAdd={() => setAddOpen(true)}
+      />
+
+      <AddPanel
+        open={addOpen}
+        workspaceId={state.activeWorkspace}
+        onClose={() => setAddOpen(false)}
+        onAddShortcut={addShortcut}
+        onAddWidget={addWidget}
+      />
+
+      {settingsSection && (
+        <SettingsPanel
+          open
+          initialSection={settingsSection}
           settings={state.settings}
           state={state}
           onChange={(settings) => setState((current) => ({ ...current, settings }))}
-          onClose={() => setShowSettings(false)}
           onImport={(imported) => setState(imported)}
-          onReset={() => {
-            reset()
-            setShowSettings(false)
-          }}
+          onReset={() => { reset(); setSettingsSection(null) }}
+          onClose={() => setSettingsSection(null)}
         />
       )}
     </div>
