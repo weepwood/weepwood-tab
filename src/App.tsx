@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
-import type { DesktopItem, DesktopLayout, Folder, Shortcut, WeatherSnapshot, WidgetSize, WidgetType } from './core/types'
+import type { DesktopItem, DesktopLayout, Folder, Shortcut, WeatherSnapshot, WidgetInstance, WidgetSize, WidgetType } from './core/types'
 import {
   findNearestFreeLayout,
   getNextDesktopLayout,
@@ -30,6 +30,15 @@ const wallpaperMap = {
 } as const
 
 const sizeOrder: WidgetSize[] = ['small', 'medium', 'wide', 'tall']
+
+function defaultWidgetConfig(type: WidgetType): Record<string, string | number | boolean> | undefined {
+  if (type !== 'anniversary') return undefined
+  const date = new Date(new Date().getFullYear() + 1, 0, 1)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return { title: '重要日期', date: `${year}-${month}-${day}` }
+}
 
 export default function App() {
   const { state, setState, reset, undo, redo, canUndo, canRedo } = usePersistentState()
@@ -208,7 +217,7 @@ export default function App() {
     const id = crypto.randomUUID()
     setState((current) => ({
       ...current,
-      widgets: [...current.widgets, { id, workspaceId: current.activeWorkspace, type, size }],
+      widgets: [...current.widgets, { id, workspaceId: current.activeWorkspace, type, size, config: defaultWidgetConfig(type) }],
       desktopItems: [...current.desktopItems, {
         id: `di-${id}`,
         workspaceId: current.activeWorkspace,
@@ -225,6 +234,10 @@ export default function App() {
 
   const saveFolder = (folder: Folder) => {
     setState((current) => ({ ...current, folders: current.folders.map((item) => item.id === folder.id ? folder : item) }))
+  }
+
+  const updateWidget = (widget: WidgetInstance) => {
+    setState((current) => ({ ...current, widgets: current.widgets.map((item) => item.id === widget.id ? widget : item) }))
   }
 
   const toggleDock = (shortcutId: string) => {
@@ -353,6 +366,7 @@ export default function App() {
           onContextMenu={(item, x, y) => setContextTarget({ item, x, y })}
           onFolderReorder={reorderFolderShortcut}
           onFolderExtract={extractFolderShortcut}
+          onWidgetChange={updateWidget}
           onTasksChange={(tasks) => setState((current) => ({ ...current, tasks }))}
           onNotesChange={(value) => setState((current) => ({ ...current, notes: { ...current.notes, [current.activeWorkspace]: value } }))}
           onWeatherChange={updateWeather}
