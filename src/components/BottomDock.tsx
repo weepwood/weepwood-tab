@@ -1,5 +1,6 @@
 import type { Shortcut } from '../core/types'
 import { Icon } from './Icon'
+import { ShortcutIcon } from './ShortcutIcon'
 
 interface Props {
   visible: boolean
@@ -17,7 +18,7 @@ export function BottomDock({ visible, magnify, shortcuts, shortcutIds, iconShape
     <nav className={`bottom-dock ${magnify ? 'dock-magnify' : ''}`} aria-label="快捷 Dock">
       {items.map((shortcut) => (
         <a key={shortcut.id} href={shortcut.url} title={shortcut.title}>
-          <span className={`dock-icon shape-${iconShape}`} style={{ background: shortcut.color }}>{shortcut.icon}</span>
+          <ShortcutIcon shortcut={shortcut} className={`dock-icon shape-${iconShape}`} />
         </a>
       ))}
       <span className="dock-divider" />
