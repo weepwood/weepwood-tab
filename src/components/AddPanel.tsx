@@ -1,18 +1,21 @@
 import { useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
-import type { Shortcut, ShortcutIconMode, WidgetSize, WidgetType, WorkspaceId } from '../core/types'
+import type { Shortcut, WidgetSize, WidgetType, WorkspaceId } from '../core/types'
+import {
+  canonicalShortcutUrl,
+  parseBulkShortcutLines,
+  readStoredShortcuts,
+} from '../core/shortcutLinks'
 import { Icon } from './Icon'
-import { getDirectFaviconUrl, normalizeShortcutUrl, ShortcutIcon } from './ShortcutIcon'
-import { ShortcutIconPicker } from './ShortcutIconPicker'
+import { ShortcutForm } from './ShortcutForm'
 
-const colors = ['#17191f', '#4d78e8', '#35a86b', '#ec7696', '#ff5a25', '#7656d6', '#e4584e']
+const colors = ['#4d78e8', '#35a86b', '#7656d6', '#e4584e', '#ff5a25', '#ec7696']
 const widgetOptions: Array<{ type: WidgetType; title: string; description: string; icon: 'clock' | 'calendar' | 'task' | 'note' | 'location' | 'sparkles'; size: WidgetSize }> = [
   { type: 'clock', title: '时钟', description: '大号时间与日期', icon: 'clock', size: 'medium' },
   { type: 'weather', title: '天气', description: '基于当前位置获取天气', icon: 'location', size: 'small' },
   { type: 'calendar', title: '日历', description: '快速查看本月日期', icon: 'calendar', size: 'small' },
   { type: 'countdown', title: '年度进度', description: '查看今年剩余时间', icon: 'sparkles', size: 'wide' },
   { type: 'anniversary', title: '纪念日', description: '设置目标日期并实时倒计时', icon: 'calendar', size: 'small' },
-  { type: 'worldClock', title: '世界时钟', description: '同时查看东京、伦敦和纽约', icon: 'clock', size: 'wide' },
+  { type: 'worldClock', title: '世界时钟', description: '查看多个城市时间', icon: 'clock', size: 'wide' },
   { type: 'hotlist', title: '科技热榜', description: '获取 Hacker News 热门内容', icon: 'sparkles', size: 'tall' },
   { type: 'quote', title: '每日一句', description: '每天展示一句思考提示', icon: 'note', size: 'wide' },
   { type: 'tasks', title: '待办', description: '记录当天任务', icon: 'task', size: 'tall' },
@@ -28,74 +31,99 @@ interface Props {
 }
 
 export function AddPanel({ open, workspaceId, onClose, onAddShortcut, onAddWidget }: Props) {
-  const [tab, setTab] = useState<'widgets' | 'shortcut'>('widgets')
-  const [title, setTitle] = useState('')
-  const [url, setUrl] = useState('https://')
-  const [icon, setIcon] = useState('W')
-  const [color, setColor] = useState(colors[1] ?? '#4d78e8')
-  const [iconMode, setIconMode] = useState<ShortcutIconMode>('auto')
-  const [imageUrl, setImageUrl] = useState<string>()
-
-  const previewShortcut = useMemo<Shortcut>(() => {
-    const normalized = url.trim() && url.trim() !== 'https://' ? normalizeShortcutUrl(url) : url
-    return {
-      id: 'preview',
-      workspaceId,
-      title: title || '网站',
-      url: normalized,
-      icon: icon.trim().slice(0, 2) || title.trim().slice(0, 1) || 'W',
-      color,
-      iconMode,
-      iconUrl: iconMode === 'image' ? imageUrl : iconMode === 'auto' ? getDirectFaviconUrl(normalized) : undefined,
-    }
-  }, [color, icon, iconMode, imageUrl, title, url, workspaceId])
+  const [tab, setTab] = useState<'shortcut' | 'bulk' | 'widgets'>('shortcut')
+  const [bulkText, setBulkText] = useState('')
+  const [bulkResult, setBulkResult] = useState('')
+  const parsedEntries = useMemo(() => parseBulkShortcutLines(bulkText), [bulkText])
+  const existingUrls = useMemo(() => new Set(readStoredShortcuts().map((item) => canonicalShortcutUrl(item.url))), [bulkText, open])
+  const seenBatch = new Set<string>()
+  const preparedEntries = parsedEntries.map((entry) => {
+    const canonical = canonicalShortcutUrl(entry.url)
+    const duplicate = Boolean(canonical && (existingUrls.has(canonical) || seenBatch.has(canonical)))
+    if (canonical) seenBatch.add(canonical)
+    return { ...entry, duplicate }
+  })
+  const validEntries = preparedEntries.filter((entry) => !entry.error && !entry.duplicate)
 
   if (!open) return null
 
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
-    if (!title.trim() || !url.trim() || url.trim() === 'https://') return
-    if (iconMode === 'image' && !imageUrl) return
-    const normalized = normalizeShortcutUrl(url)
-    onAddShortcut({
-      id: crypto.randomUUID(),
-      workspaceId,
-      title: title.trim(),
-      url: normalized,
-      icon: icon.trim().slice(0, 2) || title.trim().slice(0, 1),
-      color,
-      iconMode,
-      iconUrl: iconMode === 'image' ? imageUrl : iconMode === 'auto' ? getDirectFaviconUrl(normalized) : undefined,
+  const addBulk = () => {
+    validEntries.forEach((entry, index) => {
+      onAddShortcut({
+        id: crypto.randomUUID(),
+        workspaceId,
+        title: entry.title,
+        url: entry.url,
+        icon: entry.title.slice(0, 1).toUpperCase() || 'W',
+        color: colors[index % colors.length] ?? '#4d78e8',
+        iconMode: 'auto',
+        iconFit: 'contain',
+        iconPadding: 0,
+        openMode: 'sameTab',
+      })
     })
-    setTitle('')
-    setUrl('https://')
-    setIcon('W')
-    setIconMode('auto')
-    setImageUrl(undefined)
-    onClose()
+    setBulkResult(`已添加 ${validEntries.length} 个快捷方式，跳过 ${preparedEntries.length - validEntries.length} 条无效或重复记录。`)
+    setBulkText('')
   }
-
-  const modeDescription = iconMode === 'auto'
-    ? '自动获取网页图标，失败时显示文字图标'
-    : iconMode === 'image'
-      ? imageUrl ? '使用本地上传图片' : '请选择一张图标图片'
-      : '使用自定义文字图标'
 
   return (
     <div className="panel-backdrop" onMouseDown={onClose}>
-      <aside className="floating-panel add-panel" onMouseDown={(event) => event.stopPropagation()}>
+      <aside className="floating-panel add-panel add-panel-shortcut-first" onMouseDown={(event) => event.stopPropagation()}>
         <header className="panel-header">
-          <div><small>ADD TO DESKTOP</small><h2>添加内容</h2></div>
+          <div><small>ADD TO DESKTOP</small><h2>添加快捷方式</h2></div>
           <button className="panel-close" onClick={onClose}><Icon name="close" /></button>
         </header>
 
-        <div className="panel-tabs">
+        <div className="panel-tabs panel-tabs-three">
+          <button className={tab === 'shortcut' ? 'active' : ''} onClick={() => setTab('shortcut')}><Icon name="grid" />单个链接</button>
+          <button className={tab === 'bulk' ? 'active' : ''} onClick={() => setTab('bulk')}><Icon name="upload" />批量导入</button>
           <button className={tab === 'widgets' ? 'active' : ''} onClick={() => setTab('widgets')}><Icon name="widgets" />小组件</button>
-          <button className={tab === 'shortcut' ? 'active' : ''} onClick={() => setTab('shortcut')}><Icon name="grid" />快捷方式</button>
         </div>
 
-        {tab === 'widgets' ? (
-          <div className="widget-library">
+        {tab === 'shortcut' && (
+          <ShortcutForm
+            workspaceId={workspaceId}
+            submitLabel="添加到当前空间"
+            onSubmit={(shortcut) => { onAddShortcut(shortcut); onClose() }}
+          />
+        )}
+
+        {tab === 'bulk' && (
+          <div className="bulk-shortcut-import">
+            <div className="bulk-import-guide">
+              <strong>一次粘贴多个链接</strong>
+              <small>每行一个网址，也支持“名称 | 网址”、制表符或“名称, 网址”。空行和以 # 开头的行会被忽略。</small>
+            </div>
+            <textarea
+              value={bulkText}
+              onChange={(event) => { setBulkText(event.target.value); setBulkResult('') }}
+              placeholder={'GitHub | https://github.com\nChatGPT | https://chatgpt.com\nobsidian://open?vault=Notes'}
+              autoFocus
+            />
+            <div className="bulk-import-summary">
+              <span>识别 {preparedEntries.length} 条</span>
+              <span>可添加 {validEntries.length} 条</span>
+              <span>跳过 {preparedEntries.length - validEntries.length} 条</span>
+            </div>
+            {preparedEntries.length > 0 && (
+              <div className="bulk-import-preview">
+                {preparedEntries.slice(0, 12).map((entry) => (
+                  <div key={`${entry.line}-${entry.url}`} className={entry.error || entry.duplicate ? 'invalid' : ''}>
+                    <span>{entry.line}</span>
+                    <div><strong>{entry.title || '未命名'}</strong><small>{entry.url || entry.error}</small></div>
+                    <em>{entry.error ? '格式错误' : entry.duplicate ? '重复' : '可添加'}</em>
+                  </div>
+                ))}
+              </div>
+            )}
+            {bulkResult && <p className="bulk-import-result">{bulkResult}</p>}
+            <button className="primary-action" disabled={validEntries.length === 0} onClick={addBulk}><Icon name="plus" />添加 {validEntries.length} 个链接</button>
+          </div>
+        )}
+
+        {tab === 'widgets' && (
+          <div className="widget-library widget-library-secondary">
+            <p>小组件保持现有能力，当前开发重点已经转向快捷方式、用户图标和外链访问。</p>
             {widgetOptions.map((widget) => (
               <button key={widget.type} onClick={() => { onAddWidget(widget.type, widget.size); onClose() }}>
                 <span><Icon name={widget.icon} /></span>
@@ -104,23 +132,6 @@ export function AddPanel({ open, workspaceId, onClose, onAddShortcut, onAddWidge
               </button>
             ))}
           </div>
-        ) : (
-          <form className="shortcut-form" onSubmit={submit}>
-            <div className="shortcut-icon-preview">
-              <ShortcutIcon shortcut={previewShortcut} className="app-icon shape-squircle" />
-              <div><strong>{title || '新快捷方式'}</strong><small>{modeDescription}</small></div>
-            </div>
-            <label><span>名称</span><input value={title} onChange={(event) => { setTitle(event.target.value); if (icon === 'W' && event.target.value) setIcon(event.target.value.slice(0, 1).toUpperCase()) }} placeholder="例如 GitHub" autoFocus /></label>
-            <label><span>网址</span><input value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://example.com" /></label>
-            <ShortcutIconPicker mode={iconMode} imageUrl={imageUrl} onModeChange={setIconMode} onImageChange={setImageUrl} />
-            {iconMode === 'text' && (
-              <div className="form-two-columns">
-                <label><span>图标文字</span><input value={icon} maxLength={2} onChange={(event) => setIcon(event.target.value)} /></label>
-                <label><span>图标颜色</span><div className="color-options">{colors.map((item) => <button type="button" key={item} className={color === item ? 'active' : ''} style={{ background: item }} onClick={() => setColor(item)} aria-label={item} />)}</div></label>
-              </div>
-            )}
-            <button className="primary-action" type="submit" disabled={iconMode === 'image' && !imageUrl}><Icon name="plus" />添加到当前空间</button>
-          </form>
         )}
       </aside>
     </div>

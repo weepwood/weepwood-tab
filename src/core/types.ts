@@ -4,7 +4,9 @@ export type WallpaperId = 'mist' | 'meadow' | 'sunset' | 'aurora' | 'custom'
 export type SearchEngineId = 'bing' | 'google' | 'baidu' | 'duckduckgo' | 'custom'
 export type DockPosition = 'bottom' | 'left' | 'right'
 export type IconShape = 'squircle' | 'rounded' | 'circle'
-export type ShortcutIconMode = 'auto' | 'text' | 'image'
+export type ShortcutIconMode = 'auto' | 'text' | 'image' | 'url'
+export type ShortcutIconFit = 'contain' | 'cover'
+export type ShortcutOpenMode = 'sameTab' | 'newTab'
 export type WidgetType =
   | 'weather' | 'calendar' | 'countdown' | 'tasks' | 'notes' | 'clock'
   | 'anniversary' | 'worldClock' | 'quote' | 'hotlist'
@@ -26,6 +28,10 @@ export interface Shortcut {
   color: string
   iconMode?: ShortcutIconMode
   iconUrl?: string
+  iconFit?: ShortcutIconFit
+  iconPadding?: number
+  iconBackground?: string
+  openMode?: ShortcutOpenMode
 }
 
 export interface Folder {

@@ -1,0 +1,530 @@
+.add-panel-shortcut-first {
+  width: min(720px, calc(100vw - 28px));
+  max-height: min(860px, calc(100vh - 28px));
+  overflow: hidden;
+}
+
+.add-panel-shortcut-first .panel-tabs-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.shortcut-form-deep {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 2px 20px;
+  overflow: auto;
+}
+
+.shortcut-live-preview {
+  position: sticky;
+  z-index: 5;
+  top: 0;
+  backdrop-filter: blur(20px);
+}
+
+.shortcut-live-preview > div:nth-child(2) {
+  flex: 1;
+}
+
+.shortcut-preview-actions {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 6px !important;
+}
+
+.shortcut-preview-actions button {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--panel-line, rgba(30, 38, 55, .12));
+  border-radius: 10px;
+  color: inherit;
+  background: rgba(128, 138, 155, .08);
+  cursor: pointer;
+}
+
+.shortcut-preview-actions button:disabled {
+  cursor: not-allowed;
+  opacity: .4;
+}
+
+.shortcut-preview-actions svg {
+  width: 15px;
+  height: 15px;
+}
+
+.link-preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.link-preset-row button {
+  min-height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--panel-line, rgba(30, 38, 55, .12));
+  border-radius: 999px;
+  color: inherit;
+  background: rgba(128, 138, 155, .07);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.link-preset-row button:hover {
+  background: rgba(77, 120, 232, .12);
+}
+
+.shortcut-form-deep > label,
+.remote-icon-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.shortcut-form-deep > label > span,
+.remote-icon-field > span,
+.shortcut-open-settings > span,
+.icon-fit-setting > span,
+.icon-background-setting > span {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.shortcut-url-field > div,
+.title-suggestion-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.shortcut-url-field input,
+.title-suggestion-row input,
+.remote-icon-field input {
+  min-width: 0;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--panel-line, rgba(30, 38, 55, .12));
+  border-radius: 12px;
+  color: inherit;
+  background: rgba(128, 138, 155, .07);
+  font: inherit;
+  outline: none;
+}
+
+.shortcut-url-field input:focus,
+.title-suggestion-row input:focus,
+.remote-icon-field input:focus {
+  border-color: rgba(77, 120, 232, .55);
+  box-shadow: 0 0 0 3px rgba(77, 120, 232, .12);
+}
+
+.shortcut-url-field > div > button,
+.title-suggestion-row > button {
+  min-height: 42px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--panel-line, rgba(30, 38, 55, .12));
+  border-radius: 12px;
+  color: inherit;
+  background: rgba(128, 138, 155, .09);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.shortcut-url-field > div > button svg {
+  width: 14px;
+}
+
+.shortcut-url-field small,
+.remote-icon-field small {
+  opacity: .6;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.shortcut-url-field .form-error {
+  color: #d85160;
+  opacity: 1;
+}
+
+.shortcut-open-settings,
+.icon-fit-setting,
+.icon-background-setting {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.shortcut-icon-picker-deep {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--panel-line, rgba(30, 38, 55, .1));
+  border-radius: 16px;
+  background: rgba(128, 138, 155, .045);
+}
+
+.shortcut-icon-picker-deep .icon-mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.favicon-candidate-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.favicon-candidate-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.favicon-candidate-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.favicon-candidate-header strong {
+  font-size: 12px;
+}
+
+.favicon-candidate-header small,
+.favicon-candidate-section > p {
+  margin: 0;
+  opacity: .58;
+  font-size: 10px;
+}
+
+.favicon-candidate-header button {
+  min-height: 30px;
+  padding: 0 9px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 9px;
+  color: inherit;
+  background: rgba(128, 138, 155, .1);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.favicon-candidate-header svg {
+  width: 13px;
+}
+
+.favicon-candidate-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.favicon-candidate-grid > button {
+  position: relative;
+  min-width: 0;
+  min-height: 82px;
+  padding: 8px 4px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: inherit;
+  background: rgba(128, 138, 155, .07);
+  cursor: pointer;
+}
+
+.favicon-candidate-grid > button:hover,
+.favicon-candidate-grid > button.active {
+  border-color: rgba(77, 120, 232, .5);
+  background: rgba(77, 120, 232, .12);
+}
+
+.favicon-candidate-grid > button > span {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .78);
+}
+
+.favicon-candidate-grid img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.favicon-candidate-grid small {
+  max-width: 100%;
+  overflow: hidden;
+  opacity: .65;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.favicon-candidate-grid > button > svg {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 13px;
+  color: #4d78e8;
+}
+
+.remote-icon-field input {
+  width: 100%;
+}
+
+.icon-appearance-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding-top: 2px;
+}
+
+.icon-padding-setting {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.icon-padding-setting > span {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.icon-padding-setting small {
+  opacity: .55;
+  font-weight: 500;
+}
+
+.icon-background-setting > div {
+  display: flex;
+  gap: 8px;
+}
+
+.icon-background-setting input[type='color'] {
+  width: 44px;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid var(--panel-line, rgba(30, 38, 55, .12));
+  border-radius: 9px;
+  background: transparent;
+}
+
+.icon-background-setting button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--panel-line, rgba(30, 38, 55, .12));
+  border-radius: 9px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.icon-background-setting button.active {
+  border-color: rgba(77, 120, 232, .55);
+  background: rgba(77, 120, 232, .12);
+}
+
+.shortcut-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.shortcut-form-footer .secondary-action {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid var(--panel-line, rgba(30, 38, 55, .12));
+  border-radius: 12px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.shortcut-editor-deep {
+  width: min(700px, calc(100vw - 28px));
+  max-height: min(900px, calc(100vh - 28px));
+  overflow: hidden;
+}
+
+.shortcut-editor-deep > .shortcut-form-deep {
+  max-height: calc(100vh - 130px);
+  padding: 14px 20px 22px;
+}
+
+.shortcut-context-menu {
+  width: 232px;
+}
+
+.bulk-shortcut-import {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 18px;
+  overflow: auto;
+}
+
+.bulk-import-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bulk-import-guide small {
+  opacity: .58;
+  line-height: 1.5;
+}
+
+.bulk-shortcut-import textarea {
+  width: 100%;
+  min-height: 170px;
+  resize: vertical;
+  padding: 12px;
+  border: 1px solid var(--panel-line, rgba(30, 38, 55, .12));
+  border-radius: 14px;
+  color: inherit;
+  background: rgba(128, 138, 155, .07);
+  font: 12px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace;
+  outline: none;
+}
+
+.bulk-import-summary {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bulk-import-summary span {
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(128, 138, 155, .09);
+  font-size: 10px;
+}
+
+.bulk-import-preview {
+  max-height: 250px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.bulk-import-preview > div {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  min-height: 48px;
+  padding: 6px 9px;
+  border-radius: 11px;
+  background: rgba(53, 168, 107, .08);
+}
+
+.bulk-import-preview > div.invalid {
+  background: rgba(216, 81, 96, .08);
+}
+
+.bulk-import-preview > div > span {
+  opacity: .45;
+  font-size: 10px;
+  text-align: center;
+}
+
+.bulk-import-preview > div > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bulk-import-preview strong,
+.bulk-import-preview small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bulk-import-preview strong {
+  font-size: 12px;
+}
+
+.bulk-import-preview small {
+  opacity: .52;
+  font-size: 10px;
+}
+
+.bulk-import-preview em {
+  color: #35a86b;
+  font-size: 9px;
+  font-style: normal;
+}
+
+.bulk-import-preview .invalid em {
+  color: #d85160;
+}
+
+.bulk-import-result {
+  margin: 0;
+  color: #35a86b;
+  font-size: 11px;
+}
+
+.widget-library-secondary > p {
+  margin: 0 0 10px;
+  opacity: .6;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+@media (max-width: 680px) {
+  .add-panel-shortcut-first .panel-tabs-three {
+    grid-template-columns: 1fr;
+  }
+
+  .shortcut-url-field > div,
+  .title-suggestion-row,
+  .shortcut-open-settings,
+  .icon-fit-setting,
+  .icon-background-setting,
+  .icon-padding-setting {
+    grid-template-columns: 1fr;
+  }
+
+  .shortcut-icon-picker-deep .icon-mode-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .favicon-candidate-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .shortcut-form-footer {
+    flex-direction: column-reverse;
+  }
+
+  .shortcut-form-footer button {
+    width: 100%;
+  }
+}
