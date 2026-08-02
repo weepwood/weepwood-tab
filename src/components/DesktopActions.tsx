@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { DesktopItem, Folder, Shortcut, WidgetInstance } from '../core/types'
 import { Icon } from './Icon'
+import { getDirectFaviconUrl, normalizeShortcutUrl, ShortcutIcon } from './ShortcutIcon'
 
 export interface ContextTarget {
   item: DesktopItem
@@ -41,7 +42,7 @@ export function DesktopContextMenu({ target, shortcut, folder, widget, pinned, o
   return (
     <div className="desktop-context-menu" style={{ left, top }} onPointerDown={(event) => event.stopPropagation()}>
       <div className="context-title">
-        <span>{shortcut?.icon ?? (folder ? <Icon name="folder" /> : <Icon name="widgets" />)}</span>
+        {shortcut ? <ShortcutIcon shortcut={shortcut} className="context-shortcut-icon" /> : <span>{folder ? <Icon name="folder" /> : <Icon name="widgets" />}</span>}
         <div><strong>{shortcut?.title ?? folder?.title ?? widget?.title ?? '小组件'}</strong><small>{target.item.kind === 'shortcut' ? '快捷方式' : target.item.kind === 'folder' ? '文件夹' : '桌面小组件'}</small></div>
       </div>
       {shortcut && <button onClick={onOpen}><Icon name="external" />打开</button>}
@@ -65,17 +66,31 @@ export function ShortcutEditor({ shortcut, onClose, onSave }: ShortcutEditorProp
   const [url, setUrl] = useState(shortcut.url)
   const [icon, setIcon] = useState(shortcut.icon)
   const [color, setColor] = useState(shortcut.color)
+  const [autoIcon, setAutoIcon] = useState(shortcut.iconMode !== 'text')
   const colors = ['#17191f', '#4d78e8', '#35a86b', '#ec7696', '#ff5a25', '#7656d6', '#e4584e']
+
+  const previewShortcut = useMemo<Shortcut>(() => ({
+    ...shortcut,
+    title: title || shortcut.title,
+    url,
+    icon: icon.trim().slice(0, 2) || title.trim().slice(0, 1),
+    color,
+    iconMode: autoIcon ? 'auto' : 'text',
+    iconUrl: autoIcon ? getDirectFaviconUrl(url) : undefined,
+  }), [autoIcon, color, icon, shortcut, title, url])
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
     if (!title.trim() || !url.trim()) return
+    const normalized = normalizeShortcutUrl(url)
     onSave({
       ...shortcut,
       title: title.trim(),
-      url: /^https?:\/\//i.test(url) ? url : `https://${url}`,
+      url: normalized,
       icon: icon.trim().slice(0, 2) || title.trim().slice(0, 1),
       color,
+      iconMode: autoIcon ? 'auto' : 'text',
+      iconUrl: autoIcon ? getDirectFaviconUrl(normalized) : undefined,
     })
     onClose()
   }
@@ -85,12 +100,22 @@ export function ShortcutEditor({ shortcut, onClose, onSave }: ShortcutEditorProp
       <section className="shortcut-editor" onMouseDown={(event) => event.stopPropagation()}>
         <header><div><small>EDIT SHORTCUT</small><h2>编辑快捷方式</h2></div><button onClick={onClose}><Icon name="close" /></button></header>
         <form onSubmit={submit}>
+          <div className="shortcut-icon-preview">
+            <ShortcutIcon shortcut={previewShortcut} className="app-icon shape-squircle" />
+            <div><strong>{title || shortcut.title}</strong><small>{autoIcon ? '自动读取网站 favicon' : '使用文字图标'}</small></div>
+          </div>
           <label><span>名称</span><input value={title} onChange={(event) => setTitle(event.target.value)} autoFocus /></label>
           <label><span>网址</span><input value={url} onChange={(event) => setUrl(event.target.value)} /></label>
-          <div className="form-two-columns">
-            <label><span>图标文字</span><input value={icon} maxLength={2} onChange={(event) => setIcon(event.target.value)} /></label>
-            <label><span>图标颜色</span><div className="color-options">{colors.map((item) => <button key={item} type="button" className={color === item ? 'active' : ''} style={{ background: item }} onClick={() => setColor(item)} />)}</div></label>
-          </div>
+          <label className="icon-mode-row">
+            <span><strong>自动获取网页图标</strong><small>网址变化后会重新获取</small></span>
+            <input type="checkbox" checked={autoIcon} onChange={(event) => setAutoIcon(event.target.checked)} />
+          </label>
+          {!autoIcon && (
+            <div className="form-two-columns">
+              <label><span>图标文字</span><input value={icon} maxLength={2} onChange={(event) => setIcon(event.target.value)} /></label>
+              <label><span>图标颜色</span><div className="color-options">{colors.map((item) => <button key={item} type="button" className={color === item ? 'active' : ''} style={{ background: item }} onClick={() => setColor(item)} />)}</div></label>
+            </div>
+          )}
           <button className="primary-action" type="submit"><Icon name="check" />保存修改</button>
         </form>
       </section>
