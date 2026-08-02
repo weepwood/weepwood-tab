@@ -180,17 +180,23 @@ function splitBulkLine(value: string) {
 }
 
 export function parseBulkShortcutLines(value: string): BulkShortcutEntry[] {
-  return value.split(/\r?\n/).map((raw, index) => {
+  const entries: BulkShortcutEntry[] = []
+
+  value.split(/\r?\n/).forEach((raw, index) => {
     const cleaned = raw.trim().replace(/^[-*•]\s*/, '').replace(/^\d+[.)、]\s*/, '')
-    if (!cleaned || cleaned.startsWith('#')) return null
+    if (!cleaned || cleaned.startsWith('#')) return
+
     const split = splitBulkLine(cleaned)
     const url = normalizeShortcutUrl(split.url)
     const error = validateShortcutUrl(split.url)
-    return {
+    const entry: BulkShortcutEntry = {
       line: index + 1,
       title: split.title.trim() || inferShortcutTitle(url),
       url,
-      error: error || undefined,
     }
-  }).filter((item): item is BulkShortcutEntry => Boolean(item))
+    if (error) entry.error = error
+    entries.push(entry)
+  })
+
+  return entries
 }
