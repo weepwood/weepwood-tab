@@ -41,11 +41,19 @@ export interface WidgetInstance {
   config?: Record<string, string | number | boolean>
 }
 
+export interface DesktopLayout {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
 export interface DesktopItem {
   id: string
   workspaceId: WorkspaceId
   kind: 'shortcut' | 'folder' | 'widget'
   refId: string
+  layout?: DesktopLayout
 }
 
 export interface Task {
