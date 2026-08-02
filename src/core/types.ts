@@ -4,7 +4,9 @@ export type WallpaperId = 'mist' | 'meadow' | 'sunset' | 'aurora' | 'custom'
 export type SearchEngineId = 'bing' | 'google' | 'baidu' | 'duckduckgo'
 export type IconShape = 'squircle' | 'rounded' | 'circle'
 export type ShortcutIconMode = 'auto' | 'text' | 'image'
-export type WidgetType = 'weather' | 'calendar' | 'countdown' | 'tasks' | 'notes' | 'clock'
+export type WidgetType =
+  | 'weather' | 'calendar' | 'countdown' | 'tasks' | 'notes' | 'clock'
+  | 'anniversary' | 'worldClock' | 'quote' | 'hotlist'
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'tall'
 
 export interface Workspace {

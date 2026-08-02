@@ -1,0 +1,33 @@
+name: Build Browser Extension
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  build-extension:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build extension
+        run: npm run build:extension
+      - name: Package extension
+        run: cd dist-extension && zip -r ../weepwood-tab-extension.zip .
+      - name: Upload extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: weepwood-tab-extension
+          path: weepwood-tab-extension.zip
+          retention-days: 30

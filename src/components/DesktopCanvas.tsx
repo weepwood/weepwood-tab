@@ -13,6 +13,7 @@ import { Icon } from './Icon'
 import { ShortcutIcon } from './ShortcutIcon'
 import { FolderContents } from './FolderContents'
 import { CalendarMini, ClockWidget, CountdownWidget, NotesMini, TasksMini, WeatherWidget, WidgetFrame } from './Widgets'
+import { AnniversaryWidget, HotlistWidget, QuoteWidget, WorldClockWidget } from './AdvancedWidgets'
 import '../styles/free-layout.css'
 
 interface Props {
@@ -33,6 +34,7 @@ interface Props {
   onContextMenu: (item: DesktopItem, x: number, y: number) => void
   onFolderReorder: (folderId: string, sourceId: string, targetId: string) => void
   onFolderExtract: (folderId: string, shortcutId: string) => void
+  onWidgetChange: (widget: WidgetInstance) => void
   onTasksChange: (tasks: Task[]) => void
   onNotesChange: (value: string) => void
   onWeatherChange: (weather: WeatherSnapshot) => void
@@ -67,6 +69,7 @@ export function DesktopCanvas({
   onContextMenu,
   onFolderReorder,
   onFolderExtract,
+  onWidgetChange,
   onTasksChange,
   onNotesChange,
   onWeatherChange,
@@ -114,6 +117,10 @@ export function DesktopCanvas({
     if (widget.type === 'weather') return <WeatherWidget weather={weather} onChange={onWeatherChange} />
     if (widget.type === 'calendar') return <CalendarMini now={now} />
     if (widget.type === 'countdown') return <CountdownWidget title={widget.title} />
+    if (widget.type === 'anniversary') return <AnniversaryWidget widget={widget} onChange={onWidgetChange} />
+    if (widget.type === 'worldClock') return <WorldClockWidget now={now} />
+    if (widget.type === 'quote') return <QuoteWidget now={now} />
+    if (widget.type === 'hotlist') return <HotlistWidget />
     if (widget.type === 'tasks') return <TasksMini tasks={tasks} onChange={onTasksChange} />
     return <NotesMini value={notes} onChange={onNotesChange} />
   }

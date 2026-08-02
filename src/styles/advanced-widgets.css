@@ -1,0 +1,86 @@
+.anniversary-widget,
+.anniversary-editor,
+.world-clock-widget,
+.quote-widget,
+.hotlist-widget {
+  width: 100%;
+  height: 100%;
+  color: inherit;
+}
+
+.anniversary-widget {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: 1fr auto;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 18px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.anniversary-icon {
+  grid-row: 1 / 3;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.anniversary-icon svg { width: 22px; height: 22px; }
+.anniversary-widget div { display: flex; align-items: baseline; gap: 8px; }
+.anniversary-widget small { opacity: .7; }
+.anniversary-widget strong { font-size: 30px; line-height: 1; }
+.anniversary-widget em { margin-left: 3px; font-size: 13px; font-style: normal; font-weight: 500; }
+.anniversary-date { opacity: .56; font-size: 11px; }
+
+.anniversary-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 15px;
+}
+
+.anniversary-editor label { display: grid; grid-template-columns: 42px 1fr; align-items: center; gap: 8px; font-size: 12px; }
+.anniversary-editor input { min-width: 0; height: 32px; padding: 0 8px; border: 1px solid rgba(255,255,255,.2); border-radius: 9px; color: inherit; background: rgba(0,0,0,.12); }
+.anniversary-editor > div { display: flex; justify-content: flex-end; gap: 7px; }
+.anniversary-editor button { padding: 6px 10px; border: 0; border-radius: 8px; cursor: pointer; }
+
+.world-clock-widget { padding: 17px; }
+.world-clock-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.world-clock-list > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 11px; border-radius: 14px; background: rgba(255,255,255,.12); }
+.world-clock-list span { opacity: .66; font-size: 12px; }
+.world-clock-list strong { font-size: 22px; letter-spacing: -.04em; }
+.world-clock-list small { opacity: .5; font-size: 10px; }
+
+.quote-widget { position: relative; display: flex; flex-direction: column; justify-content: space-between; padding: 20px 22px; overflow: hidden; }
+.quote-mark { position: absolute; top: -18px; right: 15px; opacity: .12; font-family: Georgia, serif; font-size: 110px; line-height: 1; }
+.quote-widget p { position: relative; z-index: 1; max-width: 90%; margin: 4px 0 14px; font-size: 18px; font-weight: 650; line-height: 1.55; }
+.quote-widget footer { display: flex; justify-content: space-between; gap: 12px; opacity: .58; font-size: 11px; }
+
+.hotlist-widget { display: flex; flex-direction: column; padding: 17px; }
+.hotlist-widget .widget-title button { display: grid; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 9px; color: inherit; background: rgba(255,255,255,.12); cursor: pointer; }
+.hotlist-widget .widget-title button:disabled { opacity: .45; }
+.hotlist-widget .widget-title svg { width: 15px; height: 15px; }
+.hotlist-list { display: flex; flex: 1; flex-direction: column; gap: 3px; min-height: 0; margin-top: 10px; overflow: auto; }
+.hotlist-list a { display: grid; grid-template-columns: 22px minmax(0,1fr) auto; gap: 8px; align-items: center; min-height: 34px; padding: 5px 7px; border-radius: 9px; color: inherit; text-decoration: none; }
+.hotlist-list a:hover { background: rgba(255,255,255,.11); }
+.hotlist-list em { display: grid; width: 20px; height: 20px; place-items: center; border-radius: 7px; background: rgba(255,255,255,.13); font-size: 10px; font-style: normal; }
+.hotlist-list span { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.hotlist-list small { opacity: .5; font-size: 10px; }
+.hotlist-list p,
+.hotlist-retry { margin: auto; opacity: .62; }
+.hotlist-retry { border: 0; color: inherit; background: transparent; cursor: pointer; }
+.hotlist-widget > footer { margin-top: 7px; opacity: .4; font-size: 9px; text-align: right; }
+
+@media (max-width: 760px) {
+  .world-clock-list { grid-template-columns: 1fr; }
+  .world-clock-list > div { display: grid; grid-template-columns: 1fr auto; }
+  .world-clock-list small { grid-column: 1 / 3; }
+  .quote-widget p { font-size: 15px; }
+}
