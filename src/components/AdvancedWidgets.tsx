@@ -7,6 +7,7 @@ import '../styles/advanced-widgets.css'
 const DAY_MS = 86_400_000
 const HOTLIST_CACHE_KEY = 'weepwood-tab-hotlist-cache-v1'
 const HOTLIST_CACHE_TTL = 15 * 60 * 1000
+const WORLD_CLOCK_KEY = 'weepwood-tab-world-clock-zones-v1'
 
 const quotes = [
   ['把复杂问题拆成可以验证的小步骤。', '工程方法'],
@@ -79,25 +80,80 @@ export function AnniversaryWidget({ widget, onChange }: {
   )
 }
 
-const zones = [
+const zoneOptions = [
   { city: '东京', zone: 'Asia/Tokyo' },
+  { city: '上海', zone: 'Asia/Shanghai' },
+  { city: '新加坡', zone: 'Asia/Singapore' },
   { city: '伦敦', zone: 'Europe/London' },
+  { city: '巴黎', zone: 'Europe/Paris' },
   { city: '纽约', zone: 'America/New_York' },
+  { city: '洛杉矶', zone: 'America/Los_Angeles' },
+  { city: '悉尼', zone: 'Australia/Sydney' },
 ]
+const defaultZones = ['Asia/Tokyo', 'Europe/London', 'America/New_York']
+
+function loadWorldClockZones() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(WORLD_CLOCK_KEY) ?? '[]') as unknown
+    if (!Array.isArray(parsed)) return defaultZones
+    const valid = parsed.filter((item): item is string => typeof item === 'string' && zoneOptions.some((zone) => zone.zone === item))
+    return valid.length ? valid.slice(0, 4) : defaultZones
+  } catch {
+    return defaultZones
+  }
+}
 
 export function WorldClockWidget({ now }: { now: Date }) {
+  const [zones, setZones] = useState<string[]>(loadWorldClockZones)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(zones)
+
+  const toggleZone = (zone: string) => {
+    setDraft((current) => current.includes(zone)
+      ? current.length > 1 ? current.filter((item) => item !== zone) : current
+      : current.length < 4 ? [...current, zone] : current)
+  }
+
+  const save = () => {
+    setZones(draft)
+    localStorage.setItem(WORLD_CLOCK_KEY, JSON.stringify(draft))
+    setEditing(false)
+  }
+
   return (
     <div className="world-clock-widget">
-      <div className="widget-title"><div><small>WORLD TIME</small><strong>世界时钟</strong></div><Icon name="clock" /></div>
-      <div className="world-clock-list">
-        {zones.map((item) => (
-          <div key={item.zone}>
-            <span>{item.city}</span>
-            <strong>{new Intl.DateTimeFormat('zh-CN', { timeZone: item.zone, hour: '2-digit', minute: '2-digit', hour12: false }).format(now)}</strong>
-            <small>{new Intl.DateTimeFormat('zh-CN', { timeZone: item.zone, weekday: 'short', month: 'numeric', day: 'numeric' }).format(now)}</small>
-          </div>
-        ))}
+      <div className="widget-title">
+        <div><small>WORLD TIME</small><strong>世界时钟</strong></div>
+        <button className="world-clock-settings" onClick={() => { setDraft(zones); setEditing((value) => !value) }} title="选择城市">
+          <Icon name={editing ? 'close' : 'settings'} />
+        </button>
       </div>
+      {editing ? (
+        <div className="world-clock-editor">
+          <div>
+            {zoneOptions.map((item) => (
+              <label key={item.zone} className={draft.includes(item.zone) ? 'active' : ''}>
+                <input type="checkbox" checked={draft.includes(item.zone)} onChange={() => toggleZone(item.zone)} />
+                <span>{item.city}</span>
+              </label>
+            ))}
+          </div>
+          <footer><small>可选择 1—4 个城市</small><button onClick={save}>保存</button></footer>
+        </div>
+      ) : (
+        <div className={`world-clock-list world-clock-count-${zones.length}`}>
+          {zones.map((zoneId) => {
+            const item = zoneOptions.find((zone) => zone.zone === zoneId) ?? zoneOptions[0]!
+            return (
+              <div key={item.zone}>
+                <span>{item.city}</span>
+                <strong>{new Intl.DateTimeFormat('zh-CN', { timeZone: item.zone, hour: '2-digit', minute: '2-digit', hour12: false }).format(now)}</strong>
+                <small>{new Intl.DateTimeFormat('zh-CN', { timeZone: item.zone, weekday: 'short', month: 'numeric', day: 'numeric' }).format(now)}</small>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
