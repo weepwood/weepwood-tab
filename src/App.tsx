@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { DesktopItem, DesktopLayout, Folder, Shortcut, WeatherSnapshot, WidgetInstance, WidgetSize, WidgetType } from './core/types'
+import type { ImportedBookmark } from './core/browserBookmarks'
 import {
   findNearestFreeLayout,
   getNextDesktopLayout,
@@ -21,6 +22,7 @@ import type { ContextTarget } from './components/DesktopActions'
 import { Icon } from './components/Icon'
 import './styles/app.css'
 import './styles/interaction-enhancements.css'
+import './styles/settings-enhancements.css'
 
 const wallpaperMap = {
   meadow: './wallpapers/meadow.svg',
@@ -30,6 +32,7 @@ const wallpaperMap = {
 } as const
 
 const sizeOrder: WidgetSize[] = ['small', 'medium', 'wide', 'tall']
+const bookmarkColors = ['#4d78e8', '#35a86b', '#7656d6', '#e4584e', '#ff5a25']
 
 function defaultWidgetConfig(type: WidgetType): Record<string, string | number | boolean> | undefined {
   if (type !== 'anniversary') return undefined
@@ -38,6 +41,16 @@ function defaultWidgetConfig(type: WidgetType): Record<string, string | number |
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return { title: '重要日期', date: `${year}-${month}-${day}` }
+}
+
+function canonicalUrl(value: string) {
+  try {
+    const url = new URL(value)
+    url.hash = ''
+    return url.href.replace(/\/$/, '').toLowerCase()
+  } catch {
+    return value.trim().replace(/\/$/, '').toLowerCase()
+  }
 }
 
 export default function App() {
@@ -213,6 +226,42 @@ export default function App() {
     }))
   }
 
+  const importBookmarks = (bookmarks: ImportedBookmark[]) => {
+    setState((current) => {
+      const existingUrls = new Set(current.shortcuts.map((shortcut) => canonicalUrl(shortcut.url)))
+      const shortcuts = [...current.shortcuts]
+      const desktopItems = [...current.desktopItems]
+      let colorIndex = 0
+
+      for (const bookmark of bookmarks) {
+        const normalized = canonicalUrl(bookmark.url)
+        if (!normalized || existingUrls.has(normalized)) continue
+        existingUrls.add(normalized)
+        const id = crypto.randomUUID()
+        const shortcut: Shortcut = {
+          id,
+          workspaceId: current.activeWorkspace,
+          title: bookmark.title.trim() || new URL(bookmark.url).hostname,
+          url: bookmark.url,
+          icon: (bookmark.title.trim().slice(0, 1) || 'W').toUpperCase(),
+          color: bookmarkColors[colorIndex % bookmarkColors.length] ?? '#4d78e8',
+          iconMode: 'auto',
+        }
+        colorIndex += 1
+        shortcuts.push(shortcut)
+        desktopItems.push({
+          id: `di-${id}`,
+          workspaceId: current.activeWorkspace,
+          kind: 'shortcut',
+          refId: id,
+          layout: getNextDesktopLayout(current.activeWorkspace, 'shortcut', desktopItems, current.widgets),
+        })
+      }
+
+      return { ...current, shortcuts, desktopItems }
+    })
+  }
+
   const addWidget = (type: WidgetType, size: WidgetSize) => {
     const id = crypto.randomUUID()
     setState((current) => ({
@@ -341,7 +390,10 @@ export default function App() {
         <SearchBar
           shortcuts={state.shortcuts}
           engine={state.settings.searchEngine}
+          customSearchName={state.settings.customSearchName}
+          customSearchUrl={state.settings.customSearchUrl}
           showSuggestions={state.settings.showSearchSuggestions}
+          showHistory={state.settings.showSearchHistory ?? true}
           onEngineChange={(searchEngine) => setState((current) => ({ ...current, settings: { ...current.settings, searchEngine } }))}
         />
         <div className="time-status"><strong>{time}</strong><small>{date}</small></div>
@@ -386,6 +438,8 @@ export default function App() {
         visible={state.settings.showDock}
         magnify={state.settings.dockMagnify}
         editMode={editMode}
+        position={state.settings.dockPosition ?? 'bottom'}
+        autoHide={state.settings.dockAutoHide ?? false}
         shortcuts={state.shortcuts}
         shortcutIds={state.dockShortcutIds}
         iconShape={state.settings.iconShape}
@@ -436,6 +490,7 @@ export default function App() {
           state={state}
           onChange={(settings) => setState((current) => ({ ...current, settings }))}
           onImport={(imported) => setState(imported)}
+          onImportBookmarks={importBookmarks}
           onReset={() => { reset(); setSettingsSection(null) }}
           onClose={() => setSettingsSection(null)}
         />
