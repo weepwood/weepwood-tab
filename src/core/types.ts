@@ -54,6 +54,7 @@ export interface DesktopItem {
   kind: 'shortcut' | 'folder' | 'widget'
   refId: string
   layout?: DesktopLayout
+  locked?: boolean
 }
 
 export interface Task {
