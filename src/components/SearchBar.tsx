@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { SearchEngineId, Shortcut } from '../core/types'
+import { normalizeShortcutUrl, openShortcut, validateShortcutUrl } from '../core/shortcutLinks'
 import { Icon } from './Icon'
 import { ShortcutIcon } from './ShortcutIcon'
 import '../styles/search-enhancements.css'
@@ -16,7 +17,7 @@ const builtInEngines: Record<Exclude<SearchEngineId, 'custom'>, { label: string;
 }
 
 function looksLikeUrl(value: string) {
-  return /^(https?:\/\/)/i.test(value) || /^[\w-]+(\.[\w-]+)+([/?#].*)?$/i.test(value)
+  return /^[a-z][a-z0-9+.-]*:/i.test(value) || /^[\w-]+(\.[\w-]+)+([/?#].*)?$/i.test(value)
 }
 
 function loadHistory() {
@@ -150,13 +151,22 @@ export function SearchBar({ shortcuts, engine, customSearchName, customSearchUrl
 
   const navigate = (value: string) => {
     const exact = shortcuts.find((item) => item.title.toLowerCase() === value.toLowerCase())
-    const destination = exact?.url ?? (looksLikeUrl(value)
-      ? (value.startsWith('http') ? value : `https://${value}`)
-      : engine === 'custom' && customEnabled
-        ? buildCustomSearchUrl(customSearchUrl!.trim(), value)
-        : `${activeEngine.url}${encodeURIComponent(value)}`)
     remember(value)
-    window.location.href = destination
+    if (exact) {
+      openShortcut(exact)
+      return
+    }
+
+    const external = looksLikeUrl(value) ? normalizeShortcutUrl(value) : ''
+    if (external && !validateShortcutUrl(external)) {
+      window.location.assign(external)
+      return
+    }
+
+    const destination = engine === 'custom' && customEnabled
+      ? buildCustomSearchUrl(customSearchUrl!.trim(), value)
+      : `${activeEngine.url}${encodeURIComponent(value)}`
+    window.location.assign(destination)
   }
 
   const submit = (event: FormEvent) => {
@@ -179,14 +189,8 @@ export function SearchBar({ shortcuts, engine, customSearchName, customSearchUrl
   return (
     <div className="wetab-search-wrap">
       <form className="wetab-search" onSubmit={submit}>
-        <button
-          className="engine-trigger"
-          type="button"
-          onClick={() => setEngineMenuOpen((value) => !value)}
-          aria-label="切换搜索引擎"
-        >
-          <span>{activeEngine.mark}</span>
-          <Icon name="chevronDown" />
+        <button className="engine-trigger" type="button" onClick={() => setEngineMenuOpen((value) => !value)} aria-label="切换搜索引擎">
+          <span>{activeEngine.mark}</span><Icon name="chevronDown" />
         </button>
         <Icon name="search" className="search-main-icon" />
         <input
@@ -195,9 +199,9 @@ export function SearchBar({ shortcuts, engine, customSearchName, customSearchUrl
           onFocus={() => setFocused(true)}
           onBlur={() => window.setTimeout(() => setFocused(false), 120)}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜索、输入网址或直接计算"
+          placeholder="搜索、输入网址、应用协议或直接计算"
           autoComplete="off"
-          aria-label="搜索网络、网址、快捷方式或计算表达式"
+          aria-label="搜索网络、网址、快捷方式、外部协议或计算表达式"
         />
         <kbd>⌘ K</kbd>
       </form>
@@ -205,42 +209,20 @@ export function SearchBar({ shortcuts, engine, customSearchName, customSearchUrl
       {engineMenuOpen && (
         <div className="engine-menu">
           {Object.entries(builtInEngines).map(([id, item]) => (
-            <button
-              key={id}
-              className={engine === id ? 'active' : ''}
-              onClick={() => {
-                onEngineChange(id as SearchEngineId)
-                setEngineMenuOpen(false)
-                inputRef.current?.focus()
-              }}
-            >
-              <span>{item.mark}</span>{item.label}
-              {engine === id && <Icon name="check" />}
+            <button key={id} className={engine === id ? 'active' : ''} onClick={() => { onEngineChange(id as SearchEngineId); setEngineMenuOpen(false); inputRef.current?.focus() }}>
+              <span>{item.mark}</span>{item.label}{engine === id && <Icon name="check" />}
             </button>
           ))}
           {customEnabled && (
-            <button
-              className={engine === 'custom' ? 'active' : ''}
-              onClick={() => {
-                onEngineChange('custom')
-                setEngineMenuOpen(false)
-                inputRef.current?.focus()
-              }}
-            >
-              <span>{activeEngine.mark}</span>{customSearchName}
-              {engine === 'custom' && <Icon name="check" />}
+            <button className={engine === 'custom' ? 'active' : ''} onClick={() => { onEngineChange('custom'); setEngineMenuOpen(false); inputRef.current?.focus() }}>
+              <span>{activeEngine.mark}</span>{customSearchName}{engine === 'custom' && <Icon name="check" />}
             </button>
           )}
         </div>
       )}
 
       {calculation !== null && query.trim() && (
-        <button
-          type="button"
-          className="calculator-search-result"
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => setQuery(calculation)}
-        >
+        <button type="button" className="calculator-search-result" onMouseDown={(event) => event.preventDefault()} onClick={() => setQuery(calculation)}>
           <span>=</span><strong>{calculation}</strong><small>按 Enter 使用结果</small>
         </button>
       )}
