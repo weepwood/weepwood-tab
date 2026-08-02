@@ -78,14 +78,14 @@ export interface AppSettings {
   wallpaperShade: number
   showLeftRail: boolean
   showDock: boolean
-  dockPosition: DockPosition
-  dockAutoHide: boolean
+  dockPosition?: DockPosition
+  dockAutoHide?: boolean
   iconShape: IconShape
   searchEngine: SearchEngineId
-  customSearchName: string
-  customSearchUrl: string
+  customSearchName?: string
+  customSearchUrl?: string
   showSearchSuggestions: boolean
-  showSearchHistory: boolean
+  showSearchHistory?: boolean
   dockMagnify: boolean
 }
 
