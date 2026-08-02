@@ -2,8 +2,9 @@
   "manifest_version": 3,
   "name": "Weepwood Tab",
   "short_name": "Weepwood Tab",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "可自定义的桌面式浏览器新标签页，支持工作空间、快捷方式、文件夹、Dock 与小组件。",
+  "permissions": ["bookmarks"],
   "chrome_url_overrides": {
     "newtab": "index.html"
   }

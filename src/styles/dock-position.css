@@ -1,0 +1,100 @@
+.bottom-dock.dock-position-bottom {
+  left: 50%;
+  right: auto;
+  top: auto;
+  bottom: 22px;
+  flex-direction: row;
+  transform: translateX(-50%);
+}
+
+.bottom-dock.dock-position-left,
+.bottom-dock.dock-position-right {
+  top: 50%;
+  bottom: auto;
+  left: auto;
+  flex-direction: column;
+  transform: translateY(-50%);
+}
+
+.bottom-dock.dock-position-left {
+  left: 18px;
+  right: auto;
+}
+
+.bottom-dock.dock-position-right {
+  left: auto;
+  right: 18px;
+}
+
+.bottom-dock.dock-position-left .dock-divider,
+.bottom-dock.dock-position-right .dock-divider {
+  width: 34px;
+  height: 1px;
+}
+
+.bottom-dock.dock-position-left .dock-drop-message,
+.bottom-dock.dock-position-right .dock-drop-message {
+  left: 50%;
+  bottom: calc(100% + 9px);
+}
+
+.bottom-dock.dock-position-bottom.dock-auto-hide {
+  transform: translate(-50%, calc(100% - 11px));
+  opacity: .3;
+}
+
+.bottom-dock.dock-position-bottom.dock-auto-hide:hover,
+.bottom-dock.dock-position-bottom.dock-auto-hide:focus-within {
+  transform: translateX(-50%);
+  opacity: 1;
+}
+
+.bottom-dock.dock-position-left.dock-auto-hide {
+  transform: translate(calc(-100% + 11px), -50%);
+  opacity: .3;
+}
+
+.bottom-dock.dock-position-left.dock-auto-hide:hover,
+.bottom-dock.dock-position-left.dock-auto-hide:focus-within {
+  transform: translateY(-50%);
+  opacity: 1;
+}
+
+.bottom-dock.dock-position-right.dock-auto-hide {
+  transform: translate(calc(100% - 11px), -50%);
+  opacity: .3;
+}
+
+.bottom-dock.dock-position-right.dock-auto-hide:hover,
+.bottom-dock.dock-position-right.dock-auto-hide:focus-within {
+  transform: translateY(-50%);
+  opacity: 1;
+}
+
+.bottom-dock.dock-auto-hide {
+  transition: transform 220ms ease, opacity 180ms ease, box-shadow 180ms ease;
+}
+
+@media (max-width: 760px) {
+  .bottom-dock.dock-position-left,
+  .bottom-dock.dock-position-right {
+    top: auto;
+    right: auto;
+    bottom: 14px;
+    left: 50%;
+    flex-direction: row;
+    transform: translateX(-50%);
+  }
+
+  .bottom-dock.dock-position-left.dock-auto-hide,
+  .bottom-dock.dock-position-right.dock-auto-hide {
+    transform: translate(-50%, calc(100% - 9px));
+  }
+
+  .bottom-dock.dock-position-left.dock-auto-hide:hover,
+  .bottom-dock.dock-position-right.dock-auto-hide:hover,
+  .bottom-dock.dock-position-left.dock-auto-hide:focus-within,
+  .bottom-dock.dock-position-right.dock-auto-hide:focus-within {
+    transform: translateX(-50%);
+  }
+}

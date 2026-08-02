@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react'
-import type { AppSettings, PersistedState, WallpaperId } from '../core/types'
+import type { AppSettings, DockPosition, PersistedState, WallpaperId } from '../core/types'
+import { canImportBrowserBookmarks, readBrowserBookmarks } from '../core/browserBookmarks'
+import type { ImportedBookmark } from '../core/browserBookmarks'
 import { Icon } from './Icon'
 
 const wallpaperOptions: Array<{ id: WallpaperId; name: string; src: string }> = [
@@ -18,12 +20,15 @@ interface Props {
   state: PersistedState
   onChange: (settings: AppSettings) => void
   onImport: (state: PersistedState) => void
+  onImportBookmarks: (bookmarks: ImportedBookmark[]) => void
   onReset: () => void
   onClose: () => void
 }
 
-export function SettingsPanel({ open, initialSection = 'general', settings, state, onChange, onImport, onReset, onClose }: Props) {
+export function SettingsPanel({ open, initialSection = 'general', settings, state, onChange, onImport, onImportBookmarks, onReset, onClose }: Props) {
   const [section, setSection] = useState<SectionId>(initialSection)
+  const [bookmarkStatus, setBookmarkStatus] = useState('')
+  const [importingBookmarks, setImportingBookmarks] = useState(false)
   const importRef = useRef<HTMLInputElement>(null)
   const wallpaperRef = useRef<HTMLInputElement>(null)
 
@@ -68,6 +73,20 @@ export function SettingsPanel({ open, initialSection = 'general', settings, stat
     reader.readAsDataURL(file)
   }
 
+  const importBookmarks = async () => {
+    setImportingBookmarks(true)
+    setBookmarkStatus('正在读取浏览器书签…')
+    try {
+      const bookmarks = await readBrowserBookmarks()
+      onImportBookmarks(bookmarks)
+      setBookmarkStatus(`已导入 ${bookmarks.length} 个书签到当前工作空间`)
+    } catch (error) {
+      setBookmarkStatus(error instanceof Error ? error.message : '书签导入失败')
+    } finally {
+      setImportingBookmarks(false)
+    }
+  }
+
   const switchRow = (title: string, detail: string, checked: boolean, onToggle: (checked: boolean) => void) => (
     <label className="setting-switch-row">
       <span><strong>{title}</strong><small>{detail}</small></span>
@@ -75,6 +94,10 @@ export function SettingsPanel({ open, initialSection = 'general', settings, stat
       <i />
     </label>
   )
+
+  const dockPosition = settings.dockPosition ?? 'bottom'
+  const customSearchName = settings.customSearchName ?? ''
+  const customSearchUrl = settings.customSearchUrl ?? ''
 
   return (
     <div className="panel-backdrop settings-backdrop" onMouseDown={onClose}>
@@ -88,7 +111,7 @@ export function SettingsPanel({ open, initialSection = 'general', settings, stat
             <button className={section === 'search' ? 'active' : ''} onClick={() => setSection('search')}><Icon name="search" />搜索</button>
             <button className={section === 'data' ? 'active' : ''} onClick={() => setSection('data')}><Icon name="download" />数据</button>
           </nav>
-          <small className="settings-version">Weepwood Tab · v0.2</small>
+          <small className="settings-version">Weepwood Tab · v0.3</small>
         </aside>
 
         <main className="settings-content">
@@ -99,8 +122,17 @@ export function SettingsPanel({ open, initialSection = 'general', settings, stat
               <div className="setting-group">
                 <h3>控制栏</h3>
                 {switchRow('显示左侧栏', '保留主页、添加、编辑和设置入口', settings.showLeftRail, (checked) => onChange({ ...settings, showLeftRail: checked }))}
-                {switchRow('显示底部 Dock', '在页面底部展示最常用的网站', settings.showDock, (checked) => onChange({ ...settings, showDock: checked }))}
+                {switchRow('显示 Dock', '展示最常用的网站入口', settings.showDock, (checked) => onChange({ ...settings, showDock: checked }))}
                 {switchRow('Dock 放大效果', '悬停图标时使用轻微放大动画', settings.dockMagnify, (checked) => onChange({ ...settings, dockMagnify: checked }))}
+                {switchRow('Dock 自动隐藏', '仅保留一条可触发的边缘区域', settings.dockAutoHide ?? false, (checked) => onChange({ ...settings, dockAutoHide: checked }))}
+              </div>
+              <div className="setting-group">
+                <h3>Dock 位置</h3>
+                <div className="segmented-control">
+                  {([['bottom', '底部'], ['left', '左侧'], ['right', '右侧']] as Array<[DockPosition, string]>).map(([value, label]) => (
+                    <button key={value} className={dockPosition === value ? 'active' : ''} onClick={() => onChange({ ...settings, dockPosition: value })}>{label}</button>
+                  ))}
+                </div>
               </div>
               <div className="setting-group">
                 <h3>时间</h3>
@@ -158,10 +190,20 @@ export function SettingsPanel({ open, initialSection = 'general', settings, stat
                   {([
                     ['bing', 'B', 'Bing'], ['google', 'G', 'Google'], ['baidu', '百', '百度'], ['duckduckgo', 'D', 'DuckDuckGo'],
                   ] as const).map(([id, mark, name]) => <button key={id} className={settings.searchEngine === id ? 'active' : ''} onClick={() => onChange({ ...settings, searchEngine: id })}><span>{mark}</span><strong>{name}</strong>{settings.searchEngine === id && <Icon name="check" />}</button>)}
+                  {customSearchName.trim() && customSearchUrl.trim() && (
+                    <button className={settings.searchEngine === 'custom' ? 'active' : ''} onClick={() => onChange({ ...settings, searchEngine: 'custom' })}><span>{customSearchName.slice(0, 1).toUpperCase()}</span><strong>{customSearchName}</strong>{settings.searchEngine === 'custom' && <Icon name="check" />}</button>
+                  )}
                 </div>
+              </div>
+              <div className="setting-group custom-search-settings">
+                <h3>自定义搜索引擎</h3>
+                <label><span>名称</span><input value={customSearchName} onChange={(event) => onChange({ ...settings, customSearchName: event.target.value })} placeholder="例如 GitHub" /></label>
+                <label><span>搜索 URL</span><input value={customSearchUrl} onChange={(event) => onChange({ ...settings, customSearchUrl: event.target.value })} placeholder="https://example.com/search?q={query}" /></label>
+                <small>使用 <code>{'{query}'}</code> 表示经过编码的搜索关键词；未填写占位符时会追加在 URL 末尾。</small>
               </div>
               <div className="setting-group">
                 {switchRow('快捷方式建议', '输入时匹配本地网站入口', settings.showSearchSuggestions, (checked) => onChange({ ...settings, showSearchSuggestions: checked }))}
+                {switchRow('搜索历史', '聚焦空搜索框时展示最近 8 条查询', settings.showSearchHistory ?? true, (checked) => onChange({ ...settings, showSearchHistory: checked }))}
               </div>
             </div>
           )}
@@ -178,6 +220,11 @@ export function SettingsPanel({ open, initialSection = 'general', settings, stat
                 <div><strong>导入备份</strong><small>导入后会覆盖当前浏览器中的数据。</small></div>
                 <button onClick={() => importRef.current?.click()}>选择文件</button>
                 <input ref={importRef} hidden type="file" accept="application/json" onChange={(event) => importData(event.target.files?.[0])} />
+              </div>
+              <div className={`setting-group data-card ${canImportBrowserBookmarks() ? '' : 'data-card-disabled'}`}>
+                <Icon name="folder" />
+                <div><strong>导入浏览器书签</strong><small>{canImportBrowserBookmarks() ? '最多读取 200 个网页书签，自动跳过重复网址。' : '仅在已安装的 Chrome/Edge 扩展版中可用。'}</small>{bookmarkStatus && <em>{bookmarkStatus}</em>}</div>
+                <button disabled={!canImportBrowserBookmarks() || importingBookmarks} onClick={() => void importBookmarks()}>{importingBookmarks ? '读取中' : '导入'}</button>
               </div>
               <button className="reset-data" onClick={() => { if (window.confirm('确定恢复默认布局和数据吗？')) onReset() }}><Icon name="trash" />恢复默认数据</button>
             </div>

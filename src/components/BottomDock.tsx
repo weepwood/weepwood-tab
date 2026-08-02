@@ -1,14 +1,17 @@
 import { useState } from 'react'
 import type { DragEvent } from 'react'
-import type { Shortcut } from '../core/types'
+import type { DockPosition, Shortcut } from '../core/types'
 import { Icon } from './Icon'
 import { ShortcutIcon } from './ShortcutIcon'
 import '../styles/folder-dock.css'
+import '../styles/dock-position.css'
 
 interface Props {
   visible: boolean
   magnify: boolean
   editMode: boolean
+  position?: DockPosition
+  autoHide?: boolean
   shortcuts: Shortcut[]
   shortcutIds: string[]
   iconShape: string
@@ -18,7 +21,7 @@ interface Props {
   onPin: (shortcutId: string) => void
 }
 
-export function BottomDock({ visible, magnify, editMode, shortcuts, shortcutIds, iconShape, onAdd, onReorder, onRemove, onPin }: Props) {
+export function BottomDock({ visible, magnify, editMode, position = 'bottom', autoHide = false, shortcuts, shortcutIds, iconShape, onAdd, onReorder, onRemove, onPin }: Props) {
   const [dragging, setDragging] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
   const [externalHover, setExternalHover] = useState(false)
@@ -36,7 +39,7 @@ export function BottomDock({ visible, magnify, editMode, shortcuts, shortcutIds,
 
   return (
     <nav
-      className={`bottom-dock ${magnify ? 'dock-magnify' : ''} ${editMode ? 'dock-editing' : ''} ${externalHover ? 'dock-external-hover' : ''}`}
+      className={`bottom-dock dock-position-${position} ${autoHide && !editMode ? 'dock-auto-hide' : ''} ${magnify ? 'dock-magnify' : ''} ${editMode ? 'dock-editing' : ''} ${externalHover ? 'dock-external-hover' : ''}`}
       aria-label="快捷 Dock"
       onDragEnter={(event) => {
         if (event.dataTransfer.types.includes('application/x-weepwood-shortcut')) setExternalHover(true)

@@ -1,7 +1,8 @@
 export type WorkspaceId = 'focus' | 'work' | 'study' | 'life'
 export type ThemeId = 'midnight' | 'aurora' | 'paper'
 export type WallpaperId = 'mist' | 'meadow' | 'sunset' | 'aurora' | 'custom'
-export type SearchEngineId = 'bing' | 'google' | 'baidu' | 'duckduckgo'
+export type SearchEngineId = 'bing' | 'google' | 'baidu' | 'duckduckgo' | 'custom'
+export type DockPosition = 'bottom' | 'left' | 'right'
 export type IconShape = 'squircle' | 'rounded' | 'circle'
 export type ShortcutIconMode = 'auto' | 'text' | 'image'
 export type WidgetType =
@@ -77,9 +78,14 @@ export interface AppSettings {
   wallpaperShade: number
   showLeftRail: boolean
   showDock: boolean
+  dockPosition?: DockPosition
+  dockAutoHide?: boolean
   iconShape: IconShape
   searchEngine: SearchEngineId
+  customSearchName?: string
+  customSearchUrl?: string
   showSearchSuggestions: boolean
+  showSearchHistory?: boolean
   dockMagnify: boolean
 }
 
