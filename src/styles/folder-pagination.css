@@ -1,0 +1,57 @@
+.folder-popover.folder-paged {
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+}
+
+.folder-paged .folder-grid {
+  flex: 1;
+  align-content: start;
+}
+
+.folder-pagination {
+  display: grid;
+  grid-template-columns: 34px 1fr 34px;
+  gap: 12px;
+  align-items: center;
+  padding-top: 12px;
+}
+
+.folder-pagination > button {
+  width: 34px;
+  height: 30px;
+  border: 0;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, .9);
+  background: rgba(255, 255, 255, .1);
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.folder-pagination > button:disabled {
+  opacity: .28;
+  cursor: default;
+}
+
+.folder-pagination > div {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+}
+
+.folder-pagination > div button {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .3);
+  cursor: pointer;
+  transition: width 160ms ease, border-radius 160ms ease, background 160ms ease;
+}
+
+.folder-pagination > div button.active {
+  width: 22px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, .9);
+}
