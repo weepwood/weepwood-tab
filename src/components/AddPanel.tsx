@@ -10,7 +10,11 @@ const widgetOptions: Array<{ type: WidgetType; title: string; description: strin
   { type: 'clock', title: '时钟', description: '大号时间与日期', icon: 'clock', size: 'medium' },
   { type: 'weather', title: '天气', description: '基于当前位置获取天气', icon: 'location', size: 'small' },
   { type: 'calendar', title: '日历', description: '快速查看本月日期', icon: 'calendar', size: 'small' },
-  { type: 'countdown', title: '倒计时', description: '查看今年剩余时间', icon: 'sparkles', size: 'wide' },
+  { type: 'countdown', title: '年度进度', description: '查看今年剩余时间', icon: 'sparkles', size: 'wide' },
+  { type: 'anniversary', title: '纪念日', description: '设置目标日期并实时倒计时', icon: 'calendar', size: 'small' },
+  { type: 'worldClock', title: '世界时钟', description: '同时查看东京、伦敦和纽约', icon: 'clock', size: 'wide' },
+  { type: 'hotlist', title: '科技热榜', description: '获取 Hacker News 热门内容', icon: 'sparkles', size: 'tall' },
+  { type: 'quote', title: '每日一句', description: '每天展示一句思考提示', icon: 'note', size: 'wide' },
   { type: 'tasks', title: '待办', description: '记录当天任务', icon: 'task', size: 'tall' },
   { type: 'notes', title: '随手记', description: '保存临时想法与链接', icon: 'note', size: 'wide' },
 ]
