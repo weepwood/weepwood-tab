@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { CSSProperties, MouseEvent } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import type { Shortcut } from '../core/types'
-import { isWebShortcut, normalizeShortcutUrl, openShortcut } from '../core/shortcutLinks'
+import { isWebShortcut, normalizeShortcutUrl } from '../core/shortcutLinks'
 import '../styles/favicon-folder.css'
 
 const FAVICON_CACHE_KEY = 'weepwood-tab-favicon-cache-v2'
@@ -110,10 +110,12 @@ export function getFaviconCandidates(value: string, preferred?: string): Favicon
     return []
   }
 
+  const cached = getCachedFavicon(value)
+  const chromeFavicon = getChromeFaviconUrl(value)
   const candidates: Array<FaviconCandidate | undefined> = [
     preferred ? { id: 'preferred', label: '已选择', url: preferred } : undefined,
-    getCachedFavicon(value) ? { id: 'cached', label: '上次成功', url: getCachedFavicon(value)! } : undefined,
-    getChromeFaviconUrl(value) ? { id: 'chrome', label: '浏览器原生', url: getChromeFaviconUrl(value)! } : undefined,
+    cached ? { id: 'cached', label: '上次成功', url: cached } : undefined,
+    chromeFavicon ? { id: 'chrome', label: '浏览器原生', url: chromeFavicon } : undefined,
     { id: 'google', label: 'Google 图标', url: `https://www.google.com/s2/favicons?domain_url=${encodeURIComponent(normalized)}&sz=256` },
     { id: 'duckduckgo', label: 'DuckDuckGo', url: `https://icons.duckduckgo.com/ip3/${encodeURIComponent(hostname)}.ico` },
     { id: 'apple', label: 'Apple Touch', url: `${origin}/apple-touch-icon.png` },
@@ -137,6 +139,7 @@ interface Props {
 }
 
 export function ShortcutIcon({ shortcut, className, style }: Props) {
+  const rootRef = useRef<HTMLSpanElement>(null)
   const candidates = useMemo(() => {
     if (shortcut.iconMode === 'text') return []
     if (shortcut.iconMode === 'image' || shortcut.iconMode === 'url') return shortcut.iconUrl ? [shortcut.iconUrl] : []
@@ -145,26 +148,28 @@ export function ShortcutIcon({ shortcut, className, style }: Props) {
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => setAttempt(0), [shortcut.iconMode, shortcut.iconUrl, shortcut.url])
+  useEffect(() => {
+    const anchor = rootRef.current?.closest<HTMLAnchorElement>('a')
+    if (!anchor) return
+    if ((shortcut.openMode ?? 'sameTab') === 'newTab') {
+      anchor.target = '_blank'
+      anchor.rel = 'noopener noreferrer'
+    } else {
+      anchor.removeAttribute('target')
+      anchor.removeAttribute('rel')
+    }
+  }, [shortcut.openMode])
 
   const source = candidates[attempt]
   const background = shortcut.iconBackground || shortcut.color
   const iconPadding = Math.max(0, Math.min(24, shortcut.iconPadding ?? 0))
 
-  const handleClick = (event: MouseEvent<HTMLSpanElement>) => {
-    if ((shortcut.openMode ?? 'sameTab') !== 'newTab') return
-    const anchor = event.currentTarget.closest('a')
-    if (!anchor?.getAttribute('href')) return
-    event.preventDefault()
-    event.stopPropagation()
-    openShortcut(shortcut, 'newTab')
-  }
-
   return (
     <span
+      ref={rootRef}
       className={`${className} ${source ? 'has-favicon' : 'uses-text-icon'}`}
       style={{ background, ...style }}
       data-shortcut-id={shortcut.id}
-      onClick={handleClick}
     >
       {source ? (
         <img
