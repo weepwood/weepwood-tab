@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, MouseEvent, PointerEvent as ReactPointerEvent } from 'react'
+import type { CSSProperties, DragEvent, MouseEvent, PointerEvent as ReactPointerEvent } from 'react'
 import type { DesktopItem, DesktopLayout, Folder, Shortcut, Task, WeatherSnapshot, WidgetInstance, WorkspaceId } from '../core/types'
 import {
   clampLayout,
@@ -129,7 +129,7 @@ export function DesktopCanvas({
     item: DesktopItem & { layout: DesktopLayout },
     mode: PointerInteraction['mode'],
   ) => {
-    if (!editMode || compactMode || event.button !== 0) return
+    if (!editMode || compactMode || item.locked || event.button !== 0) return
     event.preventDefault()
     event.stopPropagation()
     const interaction: PointerInteraction = {
@@ -228,6 +228,16 @@ export function DesktopCanvas({
     if (openFolderId && !folder) setOpenFolderId(null)
   }, [folder, openFolderId])
 
+  const beginDockDrag = (event: DragEvent, item: DesktopItem, shortcut: Shortcut) => {
+    if (!editMode || item.locked) {
+      event.preventDefault()
+      return
+    }
+    event.dataTransfer.effectAllowed = 'copy'
+    event.dataTransfer.setData('application/x-weepwood-shortcut', shortcut.id)
+    event.dataTransfer.setData('text/plain', shortcut.url)
+  }
+
   return (
     <>
       <section
@@ -248,14 +258,21 @@ export function DesktopCanvas({
             <div
               key={item.id}
               data-desktop-item-id={item.id}
-              className={`desktop-item free-layout-item desktop-item-${item.kind} ${activeItemId === item.id ? 'is-pointer-dragging' : ''} ${isMergeTarget ? 'folder-merge-target' : ''} ${widget ? `widget-span-${widget.size}` : ''}`}
+              className={`desktop-item free-layout-item desktop-item-${item.kind} ${activeItemId === item.id ? 'is-pointer-dragging' : ''} ${isMergeTarget ? 'folder-merge-target' : ''} ${item.locked ? 'is-locked' : ''} ${widget ? `widget-span-${widget.size}` : ''}`}
               style={!compactMode ? layoutStyle(effectiveLayout) : undefined}
               onContextMenu={(event) => showContextMenu(event, item)}
             >
               {shortcut && (
                 <div className="desktop-shortcut-shell">
                   {editMode && <button className="desktop-remove icon-remove" onClick={() => onRemoveItem(item)}><Icon name="close" /></button>}
-                  <a href={editMode ? undefined : shortcut.url} onClick={(event) => editMode && event.preventDefault()} className="desktop-shortcut">
+                  <a
+                    href={editMode ? undefined : shortcut.url}
+                    draggable={editMode && !item.locked}
+                    onDragStart={(event) => beginDockDrag(event, item, shortcut)}
+                    onClick={(event) => editMode && event.preventDefault()}
+                    className="desktop-shortcut"
+                    title={editMode && !item.locked ? '可拖入底部 Dock' : shortcut.title}
+                  >
                     <ShortcutIcon shortcut={shortcut} className={`app-icon shape-${iconShape}`} />
                     <span>{shortcut.title}</span>
                   </a>
@@ -283,7 +300,9 @@ export function DesktopCanvas({
                 </WidgetFrame>
               )}
 
-              {editMode && !compactMode && (
+              {editMode && item.locked && <span className="layout-lock-badge" title="位置已锁定">🔒</span>}
+
+              {editMode && !compactMode && !item.locked && (
                 <button
                   className="layout-move-handle"
                   onPointerDown={(event) => beginInteraction(event, item, 'move')}
@@ -294,7 +313,7 @@ export function DesktopCanvas({
                 </button>
               )}
 
-              {editMode && !compactMode && widget && (
+              {editMode && !compactMode && widget && !item.locked && (
                 <button
                   className="layout-resize-handle"
                   onPointerDown={(event) => beginInteraction(event, item, 'resize')}
