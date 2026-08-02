@@ -11,6 +11,10 @@ const widgetDimensions: Record<WidgetSize, Pick<DesktopLayout, 'w' | 'h'>> = {
   tall: { w: 3, h: 4 },
 }
 
+export function getWidgetDimensions(size: WidgetSize) {
+  return widgetDimensions[size]
+}
+
 export function getDefaultItemSize(item: DesktopItem, widgets: WidgetInstance[]): Pick<DesktopLayout, 'w' | 'h'> {
   if (item.kind !== 'widget') return { w: 1, h: 1 }
   const widget = widgets.find((entry) => entry.id === item.refId)
@@ -63,7 +67,7 @@ export function normalizeDesktopLayouts(items: DesktopItem[], widgets: WidgetIns
   return items.map((item) => {
     const occupied = occupiedByWorkspace.get(item.workspaceId) ?? []
     const size = getDefaultItemSize(item, widgets)
-    const requested = item.layout ? { ...item.layout, ...size } : { x: 0, y: 0, ...size }
+    const requested = item.layout ? item.layout : { x: 0, y: 0, ...size }
     const layout = findNearestFreeLayout(requested, occupied)
     occupied.push(layout)
     occupiedByWorkspace.set(item.workspaceId, occupied)
