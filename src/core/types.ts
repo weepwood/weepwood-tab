@@ -67,6 +67,13 @@ export interface Task {
   createdAt: number
 }
 
+export interface WorkspaceAppearance {
+  wallpaper: WallpaperId
+  customWallpaper?: string
+  wallpaperBlur: number
+  wallpaperShade: number
+}
+
 export interface AppSettings {
   theme: ThemeId
   glass: boolean
@@ -87,6 +94,7 @@ export interface AppSettings {
   showSearchSuggestions: boolean
   showSearchHistory?: boolean
   dockMagnify: boolean
+  browserSyncEnabled?: boolean
 }
 
 export interface WeatherSnapshot {
@@ -106,6 +114,7 @@ export interface PersistedState {
   dockShortcutIds: string[]
   tasks: Task[]
   notes: Record<WorkspaceId, string>
+  workspaceAppearances?: Partial<Record<WorkspaceId, WorkspaceAppearance>>
   weather?: WeatherSnapshot
   settings: AppSettings
 }

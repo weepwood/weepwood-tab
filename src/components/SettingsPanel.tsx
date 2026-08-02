@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
-import type { AppSettings, DockPosition, PersistedState, WallpaperId } from '../core/types'
+import type { AppSettings, DockPosition, PersistedState, WallpaperId, WorkspaceAppearance, WorkspaceId } from '../core/types'
 import { canImportBrowserBookmarks, readBrowserBookmarks } from '../core/browserBookmarks'
 import type { ImportedBookmark } from '../core/browserBookmarks'
+import { canUseBrowserSync, clearBrowserSync, readBrowserSync, writeBrowserSync } from '../core/browserSync'
 import { Icon } from './Icon'
 
 const wallpaperOptions: Array<{ id: WallpaperId; name: string; src: string }> = [
@@ -11,7 +12,15 @@ const wallpaperOptions: Array<{ id: WallpaperId; name: string; src: string }> = 
   { id: 'aurora', name: '极光', src: './wallpapers/aurora.svg' },
 ]
 
+const workspaceNames: Record<WorkspaceId, string> = {
+  work: '工作',
+  study: '学习',
+  life: '生活',
+  focus: '专注',
+}
+
 type SectionId = 'general' | 'wallpaper' | 'appearance' | 'search' | 'data'
+type WallpaperScope = 'global' | 'workspace'
 
 interface Props {
   open: boolean
@@ -27,12 +36,28 @@ interface Props {
 
 export function SettingsPanel({ open, initialSection = 'general', settings, state, onChange, onImport, onImportBookmarks, onReset, onClose }: Props) {
   const [section, setSection] = useState<SectionId>(initialSection)
+  const [wallpaperScope, setWallpaperScope] = useState<WallpaperScope>(
+    state.workspaceAppearances?.[state.activeWorkspace] ? 'workspace' : 'global',
+  )
   const [bookmarkStatus, setBookmarkStatus] = useState('')
   const [importingBookmarks, setImportingBookmarks] = useState(false)
+  const [syncStatus, setSyncStatus] = useState('')
+  const [syncing, setSyncing] = useState(false)
   const importRef = useRef<HTMLInputElement>(null)
   const wallpaperRef = useRef<HTMLInputElement>(null)
 
   if (!open) return null
+
+  const globalAppearance: WorkspaceAppearance = {
+    wallpaper: settings.wallpaper,
+    customWallpaper: settings.customWallpaper,
+    wallpaperBlur: settings.wallpaperBlur,
+    wallpaperShade: settings.wallpaperShade,
+  }
+  const workspaceAppearance = state.workspaceAppearances?.[state.activeWorkspace]
+  const scopedAppearance = wallpaperScope === 'workspace'
+    ? workspaceAppearance ?? globalAppearance
+    : globalAppearance
 
   const exportData = () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
@@ -58,6 +83,34 @@ export function SettingsPanel({ open, initialSection = 'general', settings, stat
     reader.readAsText(file)
   }
 
+  const setWorkspaceAppearance = (appearance?: WorkspaceAppearance) => {
+    const workspaceAppearances = { ...(state.workspaceAppearances ?? {}) }
+    if (appearance) workspaceAppearances[state.activeWorkspace] = appearance
+    else delete workspaceAppearances[state.activeWorkspace]
+    onImport({
+      ...state,
+      workspaceAppearances: Object.keys(workspaceAppearances).length ? workspaceAppearances : undefined,
+    })
+  }
+
+  const updateScopedAppearance = (patch: Partial<WorkspaceAppearance>) => {
+    if (wallpaperScope === 'global') {
+      onChange({
+        ...settings,
+        wallpaper: patch.wallpaper ?? settings.wallpaper,
+        customWallpaper: 'customWallpaper' in patch ? patch.customWallpaper : settings.customWallpaper,
+        wallpaperBlur: patch.wallpaperBlur ?? settings.wallpaperBlur,
+        wallpaperShade: patch.wallpaperShade ?? settings.wallpaperShade,
+      })
+      return
+    }
+
+    setWorkspaceAppearance({
+      ...(workspaceAppearance ?? globalAppearance),
+      ...patch,
+    })
+  }
+
   const uploadWallpaper = (file?: File) => {
     if (!file) return
     if (!file.type.startsWith('image/')) {
@@ -69,7 +122,7 @@ export function SettingsPanel({ open, initialSection = 'general', settings, stat
       return
     }
     const reader = new FileReader()
-    reader.onload = () => onChange({ ...settings, wallpaper: 'custom', customWallpaper: String(reader.result) })
+    reader.onload = () => updateScopedAppearance({ wallpaper: 'custom', customWallpaper: String(reader.result) })
     reader.readAsDataURL(file)
   }
 
@@ -87,6 +140,46 @@ export function SettingsPanel({ open, initialSection = 'general', settings, stat
     }
   }
 
+  const pushSync = async () => {
+    setSyncing(true)
+    setSyncStatus('正在上传同步数据…')
+    try {
+      await writeBrowserSync(state)
+      setSyncStatus(`已上传 · ${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`)
+    } catch (error) {
+      setSyncStatus(error instanceof Error ? error.message : '同步上传失败')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  const pullSync = async () => {
+    setSyncing(true)
+    setSyncStatus('正在读取同步数据…')
+    try {
+      const result = await readBrowserSync(state)
+      onImport(result.state)
+      setSyncStatus(`已恢复 · ${new Date(result.updatedAt).toLocaleString('zh-CN')}`)
+    } catch (error) {
+      setSyncStatus(error instanceof Error ? error.message : '同步恢复失败')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  const removeSync = async () => {
+    if (!window.confirm('确定删除浏览器账号中的 Weepwood Tab 同步备份吗？')) return
+    setSyncing(true)
+    try {
+      await clearBrowserSync()
+      setSyncStatus('浏览器同步备份已删除')
+    } catch (error) {
+      setSyncStatus(error instanceof Error ? error.message : '删除同步备份失败')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   const switchRow = (title: string, detail: string, checked: boolean, onToggle: (checked: boolean) => void) => (
     <label className="setting-switch-row">
       <span><strong>{title}</strong><small>{detail}</small></span>
@@ -98,12 +191,16 @@ export function SettingsPanel({ open, initialSection = 'general', settings, stat
   const dockPosition = settings.dockPosition ?? 'bottom'
   const customSearchName = settings.customSearchName ?? ''
   const customSearchUrl = settings.customSearchUrl ?? ''
+  const syncAvailable = canUseBrowserSync()
 
   return (
     <div className="panel-backdrop settings-backdrop" onMouseDown={onClose}>
       <section className="settings-window" onMouseDown={(event) => event.stopPropagation()}>
         <aside className="settings-nav">
-          <div className="settings-account"><span><Icon name="user" /></span><div><strong>本地账户</strong><small>数据保存在当前浏览器</small></div></div>
+          <div className="settings-account">
+            <span><Icon name="user" /></span>
+            <div><strong>本地账户</strong><small>{syncAvailable ? '扩展版可使用浏览器同步' : '数据保存在当前浏览器'}</small></div>
+          </div>
           <nav>
             <button className={section === 'general' ? 'active' : ''} onClick={() => setSection('general')}><Icon name="settings" />通用</button>
             <button className={section === 'wallpaper' ? 'active' : ''} onClick={() => setSection('wallpaper')}><Icon name="wallpaper" />壁纸</button>
@@ -111,7 +208,7 @@ export function SettingsPanel({ open, initialSection = 'general', settings, stat
             <button className={section === 'search' ? 'active' : ''} onClick={() => setSection('search')}><Icon name="search" />搜索</button>
             <button className={section === 'data' ? 'active' : ''} onClick={() => setSection('data')}><Icon name="download" />数据</button>
           </nav>
-          <small className="settings-version">Weepwood Tab · v0.3</small>
+          <small className="settings-version">Weepwood Tab · v0.4</small>
         </aside>
 
         <main className="settings-content">
@@ -143,21 +240,35 @@ export function SettingsPanel({ open, initialSection = 'general', settings, stat
 
           {section === 'wallpaper' && (
             <div className="settings-page">
+              <div className="setting-group wallpaper-scope-card">
+                <div>
+                  <h3>壁纸应用范围</h3>
+                  <small>当前空间：{workspaceNames[state.activeWorkspace]}</small>
+                </div>
+                <div className="segmented-control">
+                  <button className={wallpaperScope === 'global' ? 'active' : ''} onClick={() => setWallpaperScope('global')}>全部空间</button>
+                  <button className={wallpaperScope === 'workspace' ? 'active' : ''} onClick={() => setWallpaperScope('workspace')}>当前空间</button>
+                </div>
+                {wallpaperScope === 'workspace' && workspaceAppearance && (
+                  <button className="workspace-wallpaper-reset" onClick={() => setWorkspaceAppearance(undefined)}>恢复跟随全局</button>
+                )}
+              </div>
+
               <div className="wallpaper-grid">
                 {wallpaperOptions.map((wallpaper) => (
-                  <button key={wallpaper.id} className={settings.wallpaper === wallpaper.id ? 'active' : ''} onClick={() => onChange({ ...settings, wallpaper: wallpaper.id })}>
-                    <img src={wallpaper.src} alt="" /><span>{wallpaper.name}</span>{settings.wallpaper === wallpaper.id && <Icon name="check" />}
+                  <button key={wallpaper.id} className={scopedAppearance.wallpaper === wallpaper.id ? 'active' : ''} onClick={() => updateScopedAppearance({ wallpaper: wallpaper.id, customWallpaper: undefined })}>
+                    <img src={wallpaper.src} alt="" /><span>{wallpaper.name}</span>{scopedAppearance.wallpaper === wallpaper.id && <Icon name="check" />}
                   </button>
                 ))}
-                <button className={settings.wallpaper === 'custom' ? 'active custom-wallpaper-card' : 'custom-wallpaper-card'} onClick={() => wallpaperRef.current?.click()}>
-                  {settings.customWallpaper ? <img src={settings.customWallpaper} alt="自定义壁纸" /> : <span className="upload-placeholder"><Icon name="upload" />上传本地壁纸</span>}
-                  {settings.wallpaper === 'custom' && <Icon name="check" />}
+                <button className={scopedAppearance.wallpaper === 'custom' ? 'active custom-wallpaper-card' : 'custom-wallpaper-card'} onClick={() => wallpaperRef.current?.click()}>
+                  {scopedAppearance.customWallpaper ? <img src={scopedAppearance.customWallpaper} alt="自定义壁纸" /> : <span className="upload-placeholder"><Icon name="upload" />上传本地壁纸</span>}
+                  {scopedAppearance.wallpaper === 'custom' && <Icon name="check" />}
                 </button>
                 <input ref={wallpaperRef} hidden type="file" accept="image/*" onChange={(event) => uploadWallpaper(event.target.files?.[0])} />
               </div>
               <div className="setting-group compact-group">
-                <label className="range-row"><span><strong>壁纸模糊</strong><small>{settings.wallpaperBlur}px</small></span><input type="range" min="0" max="20" value={settings.wallpaperBlur} onChange={(event) => onChange({ ...settings, wallpaperBlur: Number(event.target.value) })} /></label>
-                <label className="range-row"><span><strong>背景遮罩</strong><small>{settings.wallpaperShade}%</small></span><input type="range" min="0" max="60" value={settings.wallpaperShade} onChange={(event) => onChange({ ...settings, wallpaperShade: Number(event.target.value) })} /></label>
+                <label className="range-row"><span><strong>壁纸模糊</strong><small>{scopedAppearance.wallpaperBlur}px</small></span><input type="range" min="0" max="20" value={scopedAppearance.wallpaperBlur} onChange={(event) => updateScopedAppearance({ wallpaperBlur: Number(event.target.value) })} /></label>
+                <label className="range-row"><span><strong>背景遮罩</strong><small>{scopedAppearance.wallpaperShade}%</small></span><input type="range" min="0" max="60" value={scopedAppearance.wallpaperShade} onChange={(event) => updateScopedAppearance({ wallpaperShade: Number(event.target.value) })} /></label>
               </div>
             </div>
           )}
@@ -225,6 +336,18 @@ export function SettingsPanel({ open, initialSection = 'general', settings, stat
                 <Icon name="folder" />
                 <div><strong>导入浏览器书签</strong><small>{canImportBrowserBookmarks() ? '最多读取 200 个网页书签，自动跳过重复网址。' : '仅在已安装的 Chrome/Edge 扩展版中可用。'}</small>{bookmarkStatus && <em>{bookmarkStatus}</em>}</div>
                 <button disabled={!canImportBrowserBookmarks() || importingBookmarks} onClick={() => void importBookmarks()}>{importingBookmarks ? '读取中' : '导入'}</button>
+              </div>
+              <div className={`setting-group browser-sync-card ${syncAvailable ? '' : 'data-card-disabled'}`}>
+                <div className="browser-sync-title">
+                  <Icon name="refresh" />
+                  <div><strong>浏览器账号同步</strong><small>{syncAvailable ? '同步轻量配置、布局和文字数据；本地图片不会上传。' : '仅在 Chrome/Edge 扩展版中可用。'}</small>{syncStatus && <em>{syncStatus}</em>}</div>
+                </div>
+                {switchRow('自动同步', '变更后自动写入浏览器账号同步空间', settings.browserSyncEnabled ?? false, (checked) => onChange({ ...settings, browserSyncEnabled: checked }))}
+                <div className="sync-card-actions">
+                  <button disabled={!syncAvailable || syncing} onClick={() => void pushSync()}>立即上传</button>
+                  <button disabled={!syncAvailable || syncing} onClick={() => void pullSync()}>从同步恢复</button>
+                  <button className="danger" disabled={!syncAvailable || syncing} onClick={() => void removeSync()}>删除云端备份</button>
+                </div>
               </div>
               <button className="reset-data" onClick={() => { if (window.confirm('确定恢复默认布局和数据吗？')) onReset() }}><Icon name="trash" />恢复默认数据</button>
             </div>
