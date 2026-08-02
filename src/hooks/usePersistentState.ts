@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { initialState } from '../data/defaults'
 import { normalizeDesktopLayouts } from '../core/layout'
+import { canUseBrowserSync, writeBrowserSync } from '../core/browserSync'
+import { saveAppearanceSnapshot } from '../core/workspaceAppearance'
 import type { PersistedState } from '../core/types'
 
 const STORAGE_KEY = 'weepwood-tab-state-v2'
@@ -43,6 +45,7 @@ function normalizeState(value: unknown): PersistedState {
     dockShortcutIds: Array.isArray(parsed.dockShortcutIds) ? parsed.dockShortcutIds : fallback.dockShortcutIds,
     tasks: Array.isArray(parsed.tasks) ? parsed.tasks : fallback.tasks,
     notes: { ...fallback.notes, ...(parsed.notes ?? {}) },
+    workspaceAppearances: parsed.workspaceAppearances ?? fallback.workspaceAppearances,
     settings: { ...fallback.settings, ...(parsed.settings ?? {}) },
   }
 }
@@ -68,6 +71,17 @@ export function usePersistentState() {
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    saveAppearanceSnapshot(state)
+  }, [state])
+
+  useEffect(() => {
+    if (!state.settings.browserSyncEnabled || !canUseBrowserSync()) return
+    const timer = window.setTimeout(() => {
+      void writeBrowserSync(state).catch(() => {
+        // Manual sync controls surface errors; background sync stays unobtrusive.
+      })
+    }, 1500)
+    return () => window.clearTimeout(timer)
   }, [state])
 
   const setState = useCallback<Dispatch<SetStateAction<PersistedState>>>((action) => {
@@ -78,7 +92,7 @@ export function usePersistentState() {
       if (next === current.present) return current
       return {
         past: [...current.past, cloneState(current.present)].slice(-HISTORY_LIMIT),
-        present: next,
+        present: normalizeState(next),
         future: [],
       }
     })
