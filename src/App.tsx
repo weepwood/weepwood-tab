@@ -20,6 +20,7 @@ import { DesktopContextMenu, FolderEditor, ShortcutEditor } from './components/D
 import type { ContextTarget } from './components/DesktopActions'
 import { Icon } from './components/Icon'
 import './styles/app.css'
+import './styles/interaction-enhancements.css'
 
 const wallpaperMap = {
   meadow: './wallpapers/meadow.svg',
@@ -31,7 +32,7 @@ const wallpaperMap = {
 const sizeOrder: WidgetSize[] = ['small', 'medium', 'wide', 'tall']
 
 export default function App() {
-  const { state, setState, reset } = usePersistentState()
+  const { state, setState, reset, undo, redo, canUndo, canRedo } = usePersistentState()
   const { now, time, date } = useClock(state.settings.showSeconds)
   const [editMode, setEditMode] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
@@ -66,7 +67,7 @@ export default function App() {
     setState((current) => {
       const source = current.desktopItems.find((item) => item.id === sourceId)
       const target = current.desktopItems.find((item) => item.id === targetId)
-      if (!source || !target || source.id === target.id || source.workspaceId !== target.workspaceId) return current
+      if (!source || !target || source.locked || target.locked || source.id === target.id || source.workspaceId !== target.workspaceId) return current
 
       if (source.kind === 'shortcut' && target.kind === 'shortcut') {
         const sourceShortcut = current.shortcuts.find((shortcut) => shortcut.id === source.refId)
@@ -110,7 +111,7 @@ export default function App() {
   const updateItemLayout = (itemId: string, requested: DesktopLayout) => {
     setState((current) => {
       const item = current.desktopItems.find((entry) => entry.id === itemId)
-      if (!item) return current
+      if (!item || item.locked) return current
       const occupied = current.desktopItems
         .filter((entry) => entry.workspaceId === item.workspaceId && entry.id !== itemId && entry.layout)
         .map((entry) => entry.layout as DesktopLayout)
@@ -236,6 +237,12 @@ export default function App() {
     setContextTarget(null)
   }
 
+  const pinToDock = (shortcutId: string) => {
+    setState((current) => current.dockShortcutIds.includes(shortcutId)
+      ? current
+      : { ...current, dockShortcutIds: [...current.dockShortcutIds, shortcutId] })
+  }
+
   const reorderDock = (sourceId: string, targetId: string) => {
     setState((current) => {
       const sourceIndex = current.dockShortcutIds.indexOf(sourceId)
@@ -253,11 +260,19 @@ export default function App() {
     setState((current) => ({ ...current, dockShortcutIds: current.dockShortcutIds.filter((id) => id !== shortcutId) }))
   }
 
+  const toggleItemLock = (itemId: string) => {
+    setState((current) => ({
+      ...current,
+      desktopItems: current.desktopItems.map((item) => item.id === itemId ? { ...item, locked: !item.locked } : item),
+    }))
+    setContextTarget(null)
+  }
+
   const resizeWidget = (widgetId: string) => {
     setState((current) => {
       const widget = current.widgets.find((entry) => entry.id === widgetId)
       const item = current.desktopItems.find((entry) => entry.kind === 'widget' && entry.refId === widgetId)
-      if (!widget || !item) return current
+      if (!widget || !item || item.locked) return current
       const index = sizeOrder.indexOf(widget.size)
       const size = sizeOrder[(index + 1) % sizeOrder.length] ?? 'small'
       const dimensions = getWidgetDimensions(size)
@@ -346,7 +361,11 @@ export default function App() {
       </main>
 
       {editMode && (
-        <button className="edit-finish" onClick={() => setEditMode(false)}><Icon name="check" />完成编辑</button>
+        <div className="edit-toolbar" role="toolbar" aria-label="桌面编辑工具">
+          <button onClick={undo} disabled={!canUndo} title="撤销（Ctrl/Cmd+Z）"><span aria-hidden="true">↶</span>撤销</button>
+          <button onClick={redo} disabled={!canRedo} title="重做（Ctrl/Cmd+Shift+Z）"><span aria-hidden="true">↷</span>重做</button>
+          <button className="edit-toolbar-finish" onClick={() => setEditMode(false)}><Icon name="check" />完成编辑</button>
+        </div>
       )}
 
       <BottomDock
@@ -359,6 +378,7 @@ export default function App() {
         onAdd={() => setAddOpen(true)}
         onReorder={reorderDock}
         onRemove={removeFromDock}
+        onPin={pinToDock}
       />
 
       {contextTarget && (
@@ -368,6 +388,7 @@ export default function App() {
           folder={contextFolder}
           widget={contextWidget}
           pinned={Boolean(contextShortcut && state.dockShortcutIds.includes(contextShortcut.id))}
+          locked={Boolean(contextTarget.item.locked)}
           onClose={() => setContextTarget(null)}
           onOpen={() => { if (contextShortcut) window.location.href = contextShortcut.url }}
           onEdit={() => {
@@ -376,6 +397,7 @@ export default function App() {
             setContextTarget(null)
           }}
           onToggleDock={() => contextShortcut && toggleDock(contextShortcut.id)}
+          onToggleLock={() => toggleItemLock(contextTarget.item.id)}
           onResize={() => contextWidget && resizeWidget(contextWidget.id)}
           onRemove={() => removeItem(contextTarget.item)}
         />
