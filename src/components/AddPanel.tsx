@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import type { Shortcut, WidgetSize, WidgetType, WorkspaceId } from '../core/types'
+import type { Shortcut, ShortcutIconMode, WidgetSize, WidgetType, WorkspaceId } from '../core/types'
 import { Icon } from './Icon'
 import { getDirectFaviconUrl, normalizeShortcutUrl, ShortcutIcon } from './ShortcutIcon'
+import { ShortcutIconPicker } from './ShortcutIconPicker'
 
 const colors = ['#17191f', '#4d78e8', '#35a86b', '#ec7696', '#ff5a25', '#7656d6', '#e4584e']
 const widgetOptions: Array<{ type: WidgetType; title: string; description: string; icon: 'clock' | 'calendar' | 'task' | 'note' | 'location' | 'sparkles'; size: WidgetSize }> = [
@@ -28,7 +29,8 @@ export function AddPanel({ open, workspaceId, onClose, onAddShortcut, onAddWidge
   const [url, setUrl] = useState('https://')
   const [icon, setIcon] = useState('W')
   const [color, setColor] = useState(colors[1] ?? '#4d78e8')
-  const [autoIcon, setAutoIcon] = useState(true)
+  const [iconMode, setIconMode] = useState<ShortcutIconMode>('auto')
+  const [imageUrl, setImageUrl] = useState<string>()
 
   const previewShortcut = useMemo<Shortcut>(() => {
     const normalized = url.trim() && url.trim() !== 'https://' ? normalizeShortcutUrl(url) : url
@@ -39,16 +41,17 @@ export function AddPanel({ open, workspaceId, onClose, onAddShortcut, onAddWidge
       url: normalized,
       icon: icon.trim().slice(0, 2) || title.trim().slice(0, 1) || 'W',
       color,
-      iconMode: autoIcon ? 'auto' : 'text',
-      iconUrl: autoIcon ? getDirectFaviconUrl(normalized) : undefined,
+      iconMode,
+      iconUrl: iconMode === 'image' ? imageUrl : iconMode === 'auto' ? getDirectFaviconUrl(normalized) : undefined,
     }
-  }, [autoIcon, color, icon, title, url, workspaceId])
+  }, [color, icon, iconMode, imageUrl, title, url, workspaceId])
 
   if (!open) return null
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
     if (!title.trim() || !url.trim() || url.trim() === 'https://') return
+    if (iconMode === 'image' && !imageUrl) return
     const normalized = normalizeShortcutUrl(url)
     onAddShortcut({
       id: crypto.randomUUID(),
@@ -57,15 +60,22 @@ export function AddPanel({ open, workspaceId, onClose, onAddShortcut, onAddWidge
       url: normalized,
       icon: icon.trim().slice(0, 2) || title.trim().slice(0, 1),
       color,
-      iconMode: autoIcon ? 'auto' : 'text',
-      iconUrl: autoIcon ? getDirectFaviconUrl(normalized) : undefined,
+      iconMode,
+      iconUrl: iconMode === 'image' ? imageUrl : iconMode === 'auto' ? getDirectFaviconUrl(normalized) : undefined,
     })
     setTitle('')
     setUrl('https://')
     setIcon('W')
-    setAutoIcon(true)
+    setIconMode('auto')
+    setImageUrl(undefined)
     onClose()
   }
+
+  const modeDescription = iconMode === 'auto'
+    ? '自动获取网页图标，失败时显示文字图标'
+    : iconMode === 'image'
+      ? imageUrl ? '使用本地上传图片' : '请选择一张图标图片'
+      : '使用自定义文字图标'
 
   return (
     <div className="panel-backdrop" onMouseDown={onClose}>
@@ -94,21 +104,18 @@ export function AddPanel({ open, workspaceId, onClose, onAddShortcut, onAddWidge
           <form className="shortcut-form" onSubmit={submit}>
             <div className="shortcut-icon-preview">
               <ShortcutIcon shortcut={previewShortcut} className="app-icon shape-squircle" />
-              <div><strong>{title || '新快捷方式'}</strong><small>{autoIcon ? '正在自动获取网页图标，失败时显示文字图标' : '使用自定义文字图标'}</small></div>
+              <div><strong>{title || '新快捷方式'}</strong><small>{modeDescription}</small></div>
             </div>
             <label><span>名称</span><input value={title} onChange={(event) => { setTitle(event.target.value); if (icon === 'W' && event.target.value) setIcon(event.target.value.slice(0, 1).toUpperCase()) }} placeholder="例如 GitHub" autoFocus /></label>
             <label><span>网址</span><input value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://example.com" /></label>
-            <label className="icon-mode-row">
-              <span><strong>自动获取网页图标</strong><small>优先读取网站 favicon，并自动回退</small></span>
-              <input type="checkbox" checked={autoIcon} onChange={(event) => setAutoIcon(event.target.checked)} />
-            </label>
-            {!autoIcon && (
+            <ShortcutIconPicker mode={iconMode} imageUrl={imageUrl} onModeChange={setIconMode} onImageChange={setImageUrl} />
+            {iconMode === 'text' && (
               <div className="form-two-columns">
                 <label><span>图标文字</span><input value={icon} maxLength={2} onChange={(event) => setIcon(event.target.value)} /></label>
                 <label><span>图标颜色</span><div className="color-options">{colors.map((item) => <button type="button" key={item} className={color === item ? 'active' : ''} style={{ background: item }} onClick={() => setColor(item)} aria-label={item} />)}</div></label>
               </div>
             )}
-            <button className="primary-action" type="submit"><Icon name="plus" />添加到当前空间</button>
+            <button className="primary-action" type="submit" disabled={iconMode === 'image' && !imageUrl}><Icon name="plus" />添加到当前空间</button>
           </form>
         )}
       </aside>
