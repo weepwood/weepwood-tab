@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { Shortcut } from '../core/types'
+import '../styles/favicon-folder.css'
 
 export function normalizeShortcutUrl(value: string) {
   const trimmed = value.trim()
