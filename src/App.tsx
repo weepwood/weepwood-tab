@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
-import type { DesktopItem, Shortcut, WeatherSnapshot, WidgetSize, WidgetType } from './core/types'
+import type { DesktopItem, Folder, Shortcut, WeatherSnapshot, WidgetSize, WidgetType } from './core/types'
 import { workspaces } from './data/defaults'
 import { useClock } from './hooks/useClock'
 import { usePersistentState } from './hooks/usePersistentState'
@@ -10,6 +10,8 @@ import { BottomDock } from './components/BottomDock'
 import { DesktopCanvas } from './components/DesktopCanvas'
 import { AddPanel } from './components/AddPanel'
 import { SettingsPanel } from './components/SettingsPanel'
+import { DesktopContextMenu, FolderEditor, ShortcutEditor } from './components/DesktopActions'
+import type { ContextTarget } from './components/DesktopActions'
 import { Icon } from './components/Icon'
 import './styles/app.css'
 
@@ -20,12 +22,17 @@ const wallpaperMap = {
   aurora: './wallpapers/aurora.svg',
 } as const
 
+const sizeOrder: WidgetSize[] = ['small', 'medium', 'wide', 'tall']
+
 export default function App() {
   const { state, setState, reset } = usePersistentState()
   const { now, time, date } = useClock(state.settings.showSeconds)
   const [editMode, setEditMode] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [settingsSection, setSettingsSection] = useState<'general' | 'wallpaper' | null>(null)
+  const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null)
+  const [editingShortcutId, setEditingShortcutId] = useState<string | null>(null)
+  const [editingFolderId, setEditingFolderId] = useState<string | null>(null)
 
   const currentWorkspace = workspaces.find((workspace) => workspace.id === state.activeWorkspace) ?? workspaces[0]!
   const workspaceItems = useMemo(
@@ -36,6 +43,18 @@ export default function App() {
   const wallpaper = state.settings.wallpaper === 'custom'
     ? state.settings.customWallpaper
     : wallpaperMap[state.settings.wallpaper]
+
+  const contextShortcut = contextTarget?.item.kind === 'shortcut'
+    ? state.shortcuts.find((shortcut) => shortcut.id === contextTarget.item.refId)
+    : undefined
+  const contextFolder = contextTarget?.item.kind === 'folder'
+    ? state.folders.find((folder) => folder.id === contextTarget.item.refId)
+    : undefined
+  const contextWidget = contextTarget?.item.kind === 'widget'
+    ? state.widgets.find((widget) => widget.id === contextTarget.item.refId)
+    : undefined
+  const editingShortcut = state.shortcuts.find((shortcut) => shortcut.id === editingShortcutId)
+  const editingFolder = state.folders.find((folder) => folder.id === editingFolderId)
 
   const reorder = (sourceId: string, targetId: string) => {
     setState((current) => {
@@ -56,6 +75,7 @@ export default function App() {
       desktopItems: current.desktopItems.filter((entry) => entry.id !== item.id),
       widgets: item.kind === 'widget' ? current.widgets.filter((widget) => widget.id !== item.refId) : current.widgets,
     }))
+    setContextTarget(null)
   }
 
   const addShortcut = (shortcut: Shortcut) => {
@@ -85,6 +105,36 @@ export default function App() {
     }))
   }
 
+  const saveShortcut = (shortcut: Shortcut) => {
+    setState((current) => ({ ...current, shortcuts: current.shortcuts.map((item) => item.id === shortcut.id ? shortcut : item) }))
+  }
+
+  const saveFolder = (folder: Folder) => {
+    setState((current) => ({ ...current, folders: current.folders.map((item) => item.id === folder.id ? folder : item) }))
+  }
+
+  const toggleDock = (shortcutId: string) => {
+    setState((current) => ({
+      ...current,
+      dockShortcutIds: current.dockShortcutIds.includes(shortcutId)
+        ? current.dockShortcutIds.filter((id) => id !== shortcutId)
+        : [...current.dockShortcutIds, shortcutId],
+    }))
+    setContextTarget(null)
+  }
+
+  const resizeWidget = (widgetId: string) => {
+    setState((current) => ({
+      ...current,
+      widgets: current.widgets.map((widget) => {
+        if (widget.id !== widgetId) return widget
+        const index = sizeOrder.indexOf(widget.size)
+        return { ...widget, size: sizeOrder[(index + 1) % sizeOrder.length] ?? 'small' }
+      }),
+    }))
+    setContextTarget(null)
+  }
+
   const updateWeather = (weather: WeatherSnapshot) => setState((current) => ({ ...current, weather }))
 
   return (
@@ -95,6 +145,7 @@ export default function App() {
         '--wallpaper-blur': `${state.settings.wallpaperBlur}px`,
         '--wallpaper-shade': `${state.settings.wallpaperShade / 100}`,
       } as CSSProperties}
+      onContextMenu={(event) => event.preventDefault()}
     >
       <div className="wallpaper-layer" />
       <div className="wallpaper-overlay" />
@@ -104,7 +155,10 @@ export default function App() {
         editMode={editMode}
         workspaces={workspaces}
         activeWorkspace={state.activeWorkspace}
-        onWorkspaceChange={(activeWorkspace) => setState((current) => ({ ...current, activeWorkspace }))}
+        onWorkspaceChange={(activeWorkspace) => {
+          setContextTarget(null)
+          setState((current) => ({ ...current, activeWorkspace }))
+        }}
         onAdd={() => setAddOpen(true)}
         onWallpaper={() => setSettingsSection('wallpaper')}
         onSettings={() => setSettingsSection('general')}
@@ -140,6 +194,7 @@ export default function App() {
           iconShape={state.settings.iconShape}
           onReorder={reorder}
           onRemoveItem={removeItem}
+          onContextMenu={(item, x, y) => setContextTarget({ item, x, y })}
           onTasksChange={(tasks) => setState((current) => ({ ...current, tasks }))}
           onNotesChange={(value) => setState((current) => ({ ...current, notes: { ...current.notes, [current.activeWorkspace]: value } }))}
           onWeatherChange={updateWeather}
@@ -159,6 +214,29 @@ export default function App() {
         iconShape={state.settings.iconShape}
         onAdd={() => setAddOpen(true)}
       />
+
+      {contextTarget && (
+        <DesktopContextMenu
+          target={contextTarget}
+          shortcut={contextShortcut}
+          folder={contextFolder}
+          widget={contextWidget}
+          pinned={Boolean(contextShortcut && state.dockShortcutIds.includes(contextShortcut.id))}
+          onClose={() => setContextTarget(null)}
+          onOpen={() => { if (contextShortcut) window.location.href = contextShortcut.url }}
+          onEdit={() => {
+            if (contextShortcut) setEditingShortcutId(contextShortcut.id)
+            if (contextFolder) setEditingFolderId(contextFolder.id)
+            setContextTarget(null)
+          }}
+          onToggleDock={() => contextShortcut && toggleDock(contextShortcut.id)}
+          onResize={() => contextWidget && resizeWidget(contextWidget.id)}
+          onRemove={() => removeItem(contextTarget.item)}
+        />
+      )}
+
+      {editingShortcut && <ShortcutEditor shortcut={editingShortcut} onClose={() => setEditingShortcutId(null)} onSave={saveShortcut} />}
+      {editingFolder && <FolderEditor folder={editingFolder} onClose={() => setEditingFolderId(null)} onSave={saveFolder} />}
 
       <AddPanel
         open={addOpen}

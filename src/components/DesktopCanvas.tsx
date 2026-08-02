@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { MouseEvent } from 'react'
 import type { DesktopItem, Folder, Shortcut, Task, WeatherSnapshot, WidgetInstance, WorkspaceId } from '../core/types'
 import { Icon } from './Icon'
 import { CalendarMini, ClockWidget, CountdownWidget, NotesMini, TasksMini, WeatherWidget, WidgetFrame } from './Widgets'
@@ -17,6 +18,7 @@ interface Props {
   iconShape: string
   onReorder: (sourceId: string, targetId: string) => void
   onRemoveItem: (item: DesktopItem) => void
+  onContextMenu: (item: DesktopItem, x: number, y: number) => void
   onTasksChange: (tasks: Task[]) => void
   onNotesChange: (value: string) => void
   onWeatherChange: (weather: WeatherSnapshot) => void
@@ -37,6 +39,7 @@ export function DesktopCanvas({
   iconShape,
   onReorder,
   onRemoveItem,
+  onContextMenu,
   onTasksChange,
   onNotesChange,
   onWeatherChange,
@@ -52,6 +55,12 @@ export function DesktopCanvas({
     if (widget.type === 'countdown') return <CountdownWidget title={widget.title} />
     if (widget.type === 'tasks') return <TasksMini tasks={tasks} onChange={onTasksChange} />
     return <NotesMini value={notes} onChange={onNotesChange} />
+  }
+
+  const showContextMenu = (event: MouseEvent, item: DesktopItem) => {
+    event.preventDefault()
+    event.stopPropagation()
+    onContextMenu(item, event.clientX, event.clientY)
   }
 
   const folder = folders.find((item) => item.id === openFolderId)
@@ -73,6 +82,7 @@ export function DesktopCanvas({
               key={item.id}
               className={`desktop-item desktop-item-${item.kind} ${dragging === item.id ? 'dragging' : ''} ${widget ? `widget-span-${widget.size}` : ''}`}
               draggable={editMode}
+              onContextMenu={(event) => showContextMenu(event, item)}
               onDragStart={() => setDragging(item.id)}
               onDragEnd={() => setDragging(null)}
               onDragOver={(event) => editMode && event.preventDefault()}
