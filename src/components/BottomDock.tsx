@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import type { DragEvent, Shortcut } from '../core/types'
+import type { DragEvent } from 'react'
+import type { Shortcut } from '../core/types'
 import { Icon } from './Icon'
 import { ShortcutIcon } from './ShortcutIcon'
 import '../styles/folder-dock.css'
