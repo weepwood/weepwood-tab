@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import type { DesktopItem, Folder, Shortcut, ShortcutIconMode, WidgetInstance } from '../core/types'
+import type { DesktopItem, Folder, Shortcut, WidgetInstance } from '../core/types'
+import { copyShortcutUrl, describeShortcutUrl, openShortcut } from '../core/shortcutLinks'
 import { Icon } from './Icon'
-import { getDirectFaviconUrl, normalizeShortcutUrl, ShortcutIcon } from './ShortcutIcon'
-import { ShortcutIconPicker } from './ShortcutIconPicker'
+import { ShortcutIcon } from './ShortcutIcon'
+import { ShortcutForm } from './ShortcutForm'
 
 export interface ContextTarget {
   item: DesktopItem
@@ -28,6 +29,8 @@ interface MenuProps {
 }
 
 export function DesktopContextMenu({ target, shortcut, folder, widget, pinned, locked, onClose, onOpen, onEdit, onToggleDock, onToggleLock, onResize, onRemove }: MenuProps) {
+  const [copyStatus, setCopyStatus] = useState('')
+
   useEffect(() => {
     const close = () => onClose()
     const keyboard = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
@@ -39,16 +42,34 @@ export function DesktopContextMenu({ target, shortcut, folder, widget, pinned, l
     }
   }, [onClose])
 
-  const left = Math.min(target.x, window.innerWidth - 220)
-  const top = Math.min(target.y, window.innerHeight - 310)
+  const left = Math.min(target.x, window.innerWidth - 232)
+  const top = Math.min(target.y, window.innerHeight - 390)
+
+  const open = (newTab = false) => {
+    if (shortcut) openShortcut(shortcut, newTab ? 'newTab' : undefined)
+    else onOpen()
+    onClose()
+  }
+
+  const copy = async () => {
+    if (!shortcut) return
+    const copied = await copyShortcutUrl(shortcut.url)
+    setCopyStatus(copied ? '已复制' : '复制失败')
+    window.setTimeout(onClose, 650)
+  }
 
   return (
-    <div className="desktop-context-menu" style={{ left, top }} onPointerDown={(event) => event.stopPropagation()}>
+    <div className="desktop-context-menu shortcut-context-menu" style={{ left, top }} onPointerDown={(event) => event.stopPropagation()}>
       <div className="context-title">
         {shortcut ? <ShortcutIcon shortcut={shortcut} className="context-shortcut-icon" /> : <span>{folder ? <Icon name="folder" /> : <Icon name="widgets" />}</span>}
-        <div><strong>{shortcut?.title ?? folder?.title ?? widget?.title ?? '小组件'}</strong><small>{target.item.kind === 'shortcut' ? '快捷方式' : target.item.kind === 'folder' ? '文件夹' : '桌面小组件'}</small></div>
+        <div>
+          <strong>{shortcut?.title ?? folder?.title ?? widget?.title ?? '小组件'}</strong>
+          <small>{shortcut ? describeShortcutUrl(shortcut.url) : target.item.kind === 'folder' ? '文件夹' : '桌面小组件'}</small>
+        </div>
       </div>
-      {shortcut && <button onClick={onOpen}><Icon name="external" />打开</button>}
+      {shortcut && <button onClick={() => open(false)}><Icon name="external" />按设定方式打开</button>}
+      {shortcut && <button onClick={() => open(true)}><Icon name="plus" />在新标签页打开</button>}
+      {shortcut && <button onClick={() => void copy()}><Icon name="download" />{copyStatus || '复制链接'}</button>}
       {(shortcut || folder) && <button onClick={onEdit}><Icon name="edit" />编辑</button>}
       {shortcut && <button onClick={onToggleDock}><Icon name="dock" />{pinned ? '从 Dock 取消固定' : '固定到 Dock'}</button>}
       <button onClick={onToggleLock}><span className="context-emoji" aria-hidden="true">{locked ? '🔓' : '🔒'}</span>{locked ? '解锁位置' : '锁定位置'}</button>
@@ -66,67 +87,17 @@ interface ShortcutEditorProps {
 }
 
 export function ShortcutEditor({ shortcut, onClose, onSave }: ShortcutEditorProps) {
-  const [title, setTitle] = useState(shortcut.title)
-  const [url, setUrl] = useState(shortcut.url)
-  const [icon, setIcon] = useState(shortcut.icon)
-  const [color, setColor] = useState(shortcut.color)
-  const [iconMode, setIconMode] = useState<ShortcutIconMode>(shortcut.iconMode ?? 'auto')
-  const [imageUrl, setImageUrl] = useState(shortcut.iconMode === 'image' ? shortcut.iconUrl : undefined)
-  const colors = ['#17191f', '#4d78e8', '#35a86b', '#ec7696', '#ff5a25', '#7656d6', '#e4584e']
-
-  const previewShortcut = useMemo<Shortcut>(() => ({
-    ...shortcut,
-    title: title || shortcut.title,
-    url,
-    icon: icon.trim().slice(0, 2) || title.trim().slice(0, 1),
-    color,
-    iconMode,
-    iconUrl: iconMode === 'image' ? imageUrl : iconMode === 'auto' ? getDirectFaviconUrl(url) : undefined,
-  }), [color, icon, iconMode, imageUrl, shortcut, title, url])
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
-    if (!title.trim() || !url.trim()) return
-    if (iconMode === 'image' && !imageUrl) return
-    const normalized = normalizeShortcutUrl(url)
-    onSave({
-      ...shortcut,
-      title: title.trim(),
-      url: normalized,
-      icon: icon.trim().slice(0, 2) || title.trim().slice(0, 1),
-      color,
-      iconMode,
-      iconUrl: iconMode === 'image' ? imageUrl : iconMode === 'auto' ? getDirectFaviconUrl(normalized) : undefined,
-    })
-    onClose()
-  }
-
-  const modeDescription = iconMode === 'auto'
-    ? '自动读取网站 favicon，并缓存成功来源'
-    : iconMode === 'image'
-      ? imageUrl ? '使用本地上传图片' : '请选择一张图标图片'
-      : '使用文字图标'
-
   return (
     <div className="panel-backdrop editor-backdrop" onMouseDown={onClose}>
-      <section className="shortcut-editor" onMouseDown={(event) => event.stopPropagation()}>
+      <section className="shortcut-editor shortcut-editor-deep" onMouseDown={(event) => event.stopPropagation()}>
         <header><div><small>EDIT SHORTCUT</small><h2>编辑快捷方式</h2></div><button onClick={onClose}><Icon name="close" /></button></header>
-        <form onSubmit={submit}>
-          <div className="shortcut-icon-preview">
-            <ShortcutIcon shortcut={previewShortcut} className="app-icon shape-squircle" />
-            <div><strong>{title || shortcut.title}</strong><small>{modeDescription}</small></div>
-          </div>
-          <label><span>名称</span><input value={title} onChange={(event) => setTitle(event.target.value)} autoFocus /></label>
-          <label><span>网址</span><input value={url} onChange={(event) => setUrl(event.target.value)} /></label>
-          <ShortcutIconPicker mode={iconMode} imageUrl={imageUrl} onModeChange={setIconMode} onImageChange={setImageUrl} />
-          {iconMode === 'text' && (
-            <div className="form-two-columns">
-              <label><span>图标文字</span><input value={icon} maxLength={2} onChange={(event) => setIcon(event.target.value)} /></label>
-              <label><span>图标颜色</span><div className="color-options">{colors.map((item) => <button key={item} type="button" className={color === item ? 'active' : ''} style={{ background: item }} onClick={() => setColor(item)} />)}</div></label>
-            </div>
-          )}
-          <button className="primary-action" type="submit" disabled={iconMode === 'image' && !imageUrl}><Icon name="check" />保存修改</button>
-        </form>
+        <ShortcutForm
+          workspaceId={shortcut.workspaceId}
+          initial={shortcut}
+          submitLabel="保存修改"
+          onCancel={onClose}
+          onSubmit={(next) => { onSave(next); onClose() }}
+        />
       </section>
     </div>
   )
