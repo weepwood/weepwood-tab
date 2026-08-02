@@ -19,5 +19,7 @@ jobs:
           node-version: 24
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Type check and build
-        run: npm run build
+      - name: Build web and extension
+        run: npm run build:all
+      - name: Validate extension manifest
+        run: test -f dist-extension/manifest.json && test -f dist-extension/index.html
