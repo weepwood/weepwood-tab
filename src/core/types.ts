@@ -3,6 +3,7 @@ export type ThemeId = 'midnight' | 'aurora' | 'paper'
 export type WallpaperId = 'mist' | 'meadow' | 'sunset' | 'aurora' | 'custom'
 export type SearchEngineId = 'bing' | 'google' | 'baidu' | 'duckduckgo'
 export type IconShape = 'squircle' | 'rounded' | 'circle'
+export type ShortcutIconMode = 'auto' | 'text'
 export type WidgetType = 'weather' | 'calendar' | 'countdown' | 'tasks' | 'notes' | 'clock'
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'tall'
 
@@ -20,6 +21,8 @@ export interface Shortcut {
   url: string
   icon: string
   color: string
+  iconMode?: ShortcutIconMode
+  iconUrl?: string
 }
 
 export interface Folder {

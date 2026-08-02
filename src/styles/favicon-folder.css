@@ -1,0 +1,170 @@
+.has-favicon {
+  overflow: hidden;
+  padding: 0 !important;
+}
+
+.has-favicon img {
+  width: 72%;
+  height: 72%;
+  display: block;
+  object-fit: contain;
+  border-radius: 18%;
+  margin: auto;
+  pointer-events: none;
+  user-select: none;
+}
+
+.app-icon.has-favicon img,
+.dock-icon.has-favicon img {
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .12));
+}
+
+.suggestion-icon.has-favicon img {
+  width: 68%;
+  height: 68%;
+}
+
+.folder-mini-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
+}
+
+.folder-mini-icon.has-favicon img {
+  width: 70%;
+  height: 70%;
+}
+
+.desktop-item.folder-merge-target {
+  z-index: 8;
+}
+
+.desktop-item.folder-merge-target .desktop-shortcut-shell {
+  transform: scale(1.09);
+  filter: drop-shadow(0 14px 30px rgba(45, 101, 255, .34));
+}
+
+.desktop-item.folder-merge-target .app-icon,
+.desktop-item.folder-merge-target .folder-icon {
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, .9),
+    0 0 0 8px rgba(74, 123, 255, .72),
+    0 18px 40px rgba(29, 71, 180, .34);
+}
+
+.desktop-item.reorder-target {
+  transform: translateY(-5px);
+}
+
+.folder-merge-hint {
+  position: absolute;
+  left: 50%;
+  bottom: -26px;
+  transform: translateX(-50%);
+  min-width: max-content;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(25, 35, 61, .88);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 650;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
+  pointer-events: none;
+}
+
+.shortcut-icon-preview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--panel-line, rgba(0, 0, 0, .08));
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .42);
+}
+
+.shortcut-icon-preview .app-icon {
+  width: 50px;
+  height: 50px;
+  flex: 0 0 auto;
+}
+
+.shortcut-icon-preview > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shortcut-icon-preview strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shortcut-icon-preview small,
+.icon-mode-row small {
+  color: var(--muted, rgba(30, 34, 45, .56));
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.icon-mode-row {
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid var(--panel-line, rgba(0, 0, 0, .08));
+  border-radius: 14px;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+}
+
+.icon-mode-row > span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.icon-mode-row input {
+  width: 38px !important;
+  height: 21px;
+  flex: 0 0 auto;
+  accent-color: #4d78e8;
+}
+
+.context-shortcut-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 750;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 640px) {
+  .folder-mini-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .folder-merge-hint {
+    bottom: -22px;
+    font-size: 9px;
+  }
+
+  .shortcut-icon-preview {
+    padding: 10px;
+  }
+}

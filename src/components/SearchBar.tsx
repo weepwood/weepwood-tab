@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { SearchEngineId, Shortcut } from '../core/types'
 import { Icon } from './Icon'
+import { ShortcutIcon } from './ShortcutIcon'
 
 const engines: Record<SearchEngineId, { label: string; mark: string; url: string }> = {
   bing: { label: 'Bing', mark: 'B', url: 'https://www.bing.com/search?q=' },
@@ -104,7 +105,7 @@ export function SearchBar({ shortcuts, engine, showSuggestions, onEngineChange }
         <div className="search-suggestions wetab-suggestions">
           {suggestions.map((item) => (
             <a key={item.id} href={item.url}>
-              <span className="suggestion-icon" style={{ background: item.color }}>{item.icon}</span>
+              <ShortcutIcon shortcut={item} className="suggestion-icon" />
               <span><strong>{item.title}</strong><small>{item.url}</small></span>
               <Icon name="external" />
             </a>

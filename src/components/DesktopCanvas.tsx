@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { MouseEvent } from 'react'
 import type { DesktopItem, Folder, Shortcut, Task, WeatherSnapshot, WidgetInstance, WorkspaceId } from '../core/types'
 import { Icon } from './Icon'
+import { ShortcutIcon } from './ShortcutIcon'
 import { CalendarMini, ClockWidget, CountdownWidget, NotesMini, TasksMini, WeatherWidget, WidgetFrame } from './Widgets'
 
 interface Props {
@@ -16,7 +17,7 @@ interface Props {
   now: Date
   editMode: boolean
   iconShape: string
-  onReorder: (sourceId: string, targetId: string) => void
+  onDropItem: (sourceId: string, targetId: string) => void
   onRemoveItem: (item: DesktopItem) => void
   onContextMenu: (item: DesktopItem, x: number, y: number) => void
   onTasksChange: (tasks: Task[]) => void
@@ -37,7 +38,7 @@ export function DesktopCanvas({
   now,
   editMode,
   iconShape,
-  onReorder,
+  onDropItem,
   onRemoveItem,
   onContextMenu,
   onTasksChange,
@@ -46,6 +47,7 @@ export function DesktopCanvas({
   onAdd,
 }: Props) {
   const [dragging, setDragging] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<string | null>(null)
   const [openFolderId, setOpenFolderId] = useState<string | null>(null)
 
   const renderWidget = (widget: WidgetInstance) => {
@@ -67,6 +69,7 @@ export function DesktopCanvas({
   const folderShortcuts = folder
     ? folder.shortcutIds.map((id) => shortcuts.find((shortcut) => shortcut.id === id)).filter(Boolean) as Shortcut[]
     : []
+  const draggingItem = dragging ? items.find((item) => item.id === dragging) : undefined
 
   return (
     <>
@@ -76,25 +79,46 @@ export function DesktopCanvas({
           const currentFolder = item.kind === 'folder' ? folders.find((entry) => entry.id === item.refId) : undefined
           const widget = item.kind === 'widget' ? widgets.find((entry) => entry.id === item.refId) : undefined
           if (!shortcut && !currentFolder && !widget) return null
+          const canMerge = draggingItem?.kind === 'shortcut' && (item.kind === 'shortcut' || item.kind === 'folder')
 
           return (
             <div
               key={item.id}
-              className={`desktop-item desktop-item-${item.kind} ${dragging === item.id ? 'dragging' : ''} ${widget ? `widget-span-${widget.size}` : ''}`}
+              className={`desktop-item desktop-item-${item.kind} ${dragging === item.id ? 'dragging' : ''} ${dropTarget === item.id ? (canMerge ? 'folder-merge-target' : 'reorder-target') : ''} ${widget ? `widget-span-${widget.size}` : ''}`}
               draggable={editMode}
               onContextMenu={(event) => showContextMenu(event, item)}
-              onDragStart={() => setDragging(item.id)}
-              onDragEnd={() => setDragging(null)}
-              onDragOver={(event) => editMode && event.preventDefault()}
-              onDrop={() => {
-                if (dragging && dragging !== item.id) onReorder(dragging, item.id)
+              onDragStart={(event) => {
+                setDragging(item.id)
+                event.dataTransfer.effectAllowed = 'move'
+                event.dataTransfer.setData('text/plain', item.id)
+              }}
+              onDragEnd={() => {
+                setDragging(null)
+                setDropTarget(null)
+              }}
+              onDragEnter={() => {
+                if (editMode && dragging && dragging !== item.id) setDropTarget(item.id)
+              }}
+              onDragOver={(event) => {
+                if (!editMode || !dragging || dragging === item.id) return
+                event.preventDefault()
+                event.dataTransfer.dropEffect = 'move'
+              }}
+              onDragLeave={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTarget(null)
+              }}
+              onDrop={(event) => {
+                event.preventDefault()
+                if (dragging && dragging !== item.id) onDropItem(dragging, item.id)
+                setDragging(null)
+                setDropTarget(null)
               }}
             >
               {shortcut && (
                 <div className="desktop-shortcut-shell">
                   {editMode && <button className="desktop-remove icon-remove" onClick={() => onRemoveItem(item)}><Icon name="close" /></button>}
                   <a href={editMode ? undefined : shortcut.url} onClick={(event) => editMode && event.preventDefault()} className="desktop-shortcut">
-                    <span className={`app-icon shape-${iconShape}`} style={{ background: shortcut.color }}>{shortcut.icon}</span>
+                    <ShortcutIcon shortcut={shortcut} className={`app-icon shape-${iconShape}`} />
                     <span>{shortcut.title}</span>
                   </a>
                 </div>
@@ -107,7 +131,7 @@ export function DesktopCanvas({
                     <span className={`folder-icon shape-${iconShape}`}>
                       {currentFolder.shortcutIds.slice(0, 4).map((id) => {
                         const child = shortcuts.find((entry) => entry.id === id)
-                        return child ? <i key={id} style={{ background: child.color }}>{child.icon}</i> : null
+                        return child ? <ShortcutIcon key={id} shortcut={child} className="folder-mini-icon" /> : null
                       })}
                     </span>
                     <span>{currentFolder.title}</span>
@@ -119,6 +143,10 @@ export function DesktopCanvas({
                 <WidgetFrame widget={widget} editMode={editMode} onRemove={() => onRemoveItem(item)}>
                   {renderWidget(widget)}
                 </WidgetFrame>
+              )}
+
+              {dropTarget === item.id && canMerge && (
+                <span className="folder-merge-hint">{item.kind === 'folder' ? '移入文件夹' : '创建文件夹'}</span>
               )}
             </div>
           )
@@ -137,7 +165,7 @@ export function DesktopCanvas({
             <div className="folder-grid">
               {folderShortcuts.map((shortcut) => (
                 <a key={shortcut.id} href={shortcut.url}>
-                  <span className={`app-icon shape-${iconShape}`} style={{ background: shortcut.color }}>{shortcut.icon}</span>
+                  <ShortcutIcon shortcut={shortcut} className={`app-icon shape-${iconShape}`} />
                   <small>{shortcut.title}</small>
                 </a>
               ))}

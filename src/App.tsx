@@ -56,16 +56,57 @@ export default function App() {
   const editingShortcut = state.shortcuts.find((shortcut) => shortcut.id === editingShortcutId)
   const editingFolder = state.folders.find((folder) => folder.id === editingFolderId)
 
-  const reorder = (sourceId: string, targetId: string) => {
+  const dropItem = (sourceId: string, targetId: string) => {
     setState((current) => {
       const sourceIndex = current.desktopItems.findIndex((item) => item.id === sourceId)
       const targetIndex = current.desktopItems.findIndex((item) => item.id === targetId)
-      if (sourceIndex < 0 || targetIndex < 0) return current
-      const next = [...current.desktopItems]
-      const [moved] = next.splice(sourceIndex, 1)
+      if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return current
+
+      const source = current.desktopItems[sourceIndex]
+      const target = current.desktopItems[targetIndex]
+      if (!source || !target || source.workspaceId !== target.workspaceId) return current
+
+      if (source.kind === 'shortcut' && target.kind === 'shortcut') {
+        const sourceShortcut = current.shortcuts.find((shortcut) => shortcut.id === source.refId)
+        const targetShortcut = current.shortcuts.find((shortcut) => shortcut.id === target.refId)
+        if (!sourceShortcut || !targetShortcut) return current
+
+        const folderId = crypto.randomUUID()
+        const folder: Folder = {
+          id: folderId,
+          workspaceId: source.workspaceId,
+          title: '新建文件夹',
+          shortcutIds: [targetShortcut.id, sourceShortcut.id],
+        }
+        const desktopItems = current.desktopItems.filter((item) => item.id !== source.id && item.id !== target.id)
+        const insertAt = Math.max(0, targetIndex - (sourceIndex < targetIndex ? 1 : 0))
+        desktopItems.splice(insertAt, 0, {
+          id: `di-${folderId}`,
+          workspaceId: source.workspaceId,
+          kind: 'folder',
+          refId: folderId,
+        })
+        return { ...current, folders: [...current.folders, folder], desktopItems }
+      }
+
+      if (source.kind === 'shortcut' && target.kind === 'folder') {
+        const targetFolder = current.folders.find((folder) => folder.id === target.refId)
+        if (!targetFolder || targetFolder.shortcutIds.includes(source.refId)) return current
+        return {
+          ...current,
+          folders: current.folders.map((folder) => folder.id === targetFolder.id
+            ? { ...folder, shortcutIds: [...folder.shortcutIds, source.refId] }
+            : folder),
+          desktopItems: current.desktopItems.filter((item) => item.id !== source.id),
+        }
+      }
+
+      const desktopItems = [...current.desktopItems]
+      const [moved] = desktopItems.splice(sourceIndex, 1)
       if (!moved) return current
-      next.splice(targetIndex, 0, moved)
-      return { ...current, desktopItems: next }
+      const adjustedTarget = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
+      desktopItems.splice(adjustedTarget, 0, moved)
+      return { ...current, desktopItems }
     })
   }
 
@@ -192,7 +233,7 @@ export default function App() {
           now={now}
           editMode={editMode}
           iconShape={state.settings.iconShape}
-          onReorder={reorder}
+          onDropItem={dropItem}
           onRemoveItem={removeItem}
           onContextMenu={(item, x, y) => setContextTarget({ item, x, y })}
           onTasksChange={(tasks) => setState((current) => ({ ...current, tasks }))}
