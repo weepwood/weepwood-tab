@@ -34,6 +34,69 @@ function buildCustomSearchUrl(template: string, query: string) {
   return `${template}${encoded}`
 }
 
+function calculateExpression(value: string) {
+  const source = value.trim().replace(/^=/, '').replaceAll('×', '*').replaceAll('÷', '/').replaceAll('，', '.')
+  if (!source || !/[+\-*/%()]/.test(source) || !/^[\d\s.+\-*/%()]+$/.test(source)) return null
+  const compact = source.replaceAll(/\s+/g, '')
+  const tokens = compact.match(/\d*\.?\d+|[()+\-*/%]/g)
+  if (!tokens || tokens.join('') !== compact) return null
+  let index = 0
+
+  const parseExpression = (): number => {
+    let result = parseTerm()
+    while (tokens[index] === '+' || tokens[index] === '-') {
+      const operator = tokens[index++]
+      const next = parseTerm()
+      result = operator === '+' ? result + next : result - next
+    }
+    return result
+  }
+
+  const parseTerm = (): number => {
+    let result = parseFactor()
+    while (tokens[index] === '*' || tokens[index] === '/') {
+      const operator = tokens[index++]
+      const next = parseFactor()
+      if (operator === '/' && next === 0) throw new Error('division by zero')
+      result = operator === '*' ? result * next : result / next
+    }
+    return result
+  }
+
+  const parseFactor = (): number => {
+    const token = tokens[index]
+    if (token === '+' || token === '-') {
+      index += 1
+      const next = parseFactor()
+      return token === '-' ? -next : next
+    }
+    let result: number
+    if (token === '(') {
+      index += 1
+      result = parseExpression()
+      if (tokens[index] !== ')') throw new Error('missing parenthesis')
+      index += 1
+    } else {
+      if (!token || Number.isNaN(Number(token))) throw new Error('invalid number')
+      result = Number(token)
+      index += 1
+    }
+    while (tokens[index] === '%') {
+      result /= 100
+      index += 1
+    }
+    return result
+  }
+
+  try {
+    const result = parseExpression()
+    if (index !== tokens.length || !Number.isFinite(result)) return null
+    return Number.parseFloat(result.toFixed(10)).toString()
+  } catch {
+    return null
+  }
+}
+
 interface Props {
   shortcuts: Shortcut[]
   engine: SearchEngineId
@@ -76,6 +139,7 @@ export function SearchBar({ shortcuts, engine, customSearchName, customSearchUrl
       .slice(0, 5)
   }, [query, shortcuts, showSuggestions])
 
+  const calculation = useMemo(() => calculateExpression(query), [query])
   const visibleHistory = showHistory && focused && !query.trim() ? history : []
 
   const remember = (value: string) => {
@@ -99,6 +163,11 @@ export function SearchBar({ shortcuts, engine, customSearchName, customSearchUrl
     event.preventDefault()
     const value = query.trim()
     if (!value) return
+    if (calculation !== null) {
+      remember(value)
+      setQuery(calculation)
+      return
+    }
     navigate(value)
   }
 
@@ -126,9 +195,9 @@ export function SearchBar({ shortcuts, engine, customSearchName, customSearchUrl
           onFocus={() => setFocused(true)}
           onBlur={() => window.setTimeout(() => setFocused(false), 120)}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="输入搜索内容"
+          placeholder="搜索、输入网址或直接计算"
           autoComplete="off"
-          aria-label="搜索网络、网址或快捷方式"
+          aria-label="搜索网络、网址、快捷方式或计算表达式"
         />
         <kbd>⌘ K</kbd>
       </form>
@@ -165,7 +234,18 @@ export function SearchBar({ shortcuts, engine, customSearchName, customSearchUrl
         </div>
       )}
 
-      {suggestions.length > 0 && (
+      {calculation !== null && query.trim() && (
+        <button
+          type="button"
+          className="calculator-search-result"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => setQuery(calculation)}
+        >
+          <span>=</span><strong>{calculation}</strong><small>按 Enter 使用结果</small>
+        </button>
+      )}
+
+      {calculation === null && suggestions.length > 0 && (
         <div className="search-suggestions wetab-suggestions">
           {suggestions.map((item) => (
             <a key={item.id} href={item.url}>
