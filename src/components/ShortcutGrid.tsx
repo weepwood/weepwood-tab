@@ -15,11 +15,17 @@ export function ShortcutGrid({ shortcuts, editMode, compact, onAdd, onDelete, on
   const [dragging, setDragging] = useState<string | null>(null)
 
   return (
-    <section className="section-block">
+    <section className="shortcut-section" aria-labelledby="shortcut-heading">
       <div className="section-heading">
-        <div><span className="eyebrow">QUICK ACCESS</span><h2>常用入口</h2></div>
-        <span className="section-meta">{editMode ? '拖动图标调整顺序' : `${shortcuts.length} 个快捷方式`}</span>
+        <div>
+          <span className="eyebrow">QUICK ACCESS</span>
+          <h2 id="shortcut-heading">快捷方式</h2>
+        </div>
+        <span className="section-meta">
+          {editMode ? '拖动调整顺序，点击右上角删除' : `${shortcuts.length} 个入口`}
+        </span>
       </div>
+
       <div className={`shortcut-grid ${compact ? 'is-compact' : ''}`}>
         {shortcuts.map((item) => (
           <div
@@ -33,17 +39,27 @@ export function ShortcutGrid({ shortcuts, editMode, compact, onAdd, onDelete, on
               if (dragging && dragging !== item.id) onReorder(dragging, item.id)
             }}
           >
-            <a href={editMode ? undefined : item.url} className="shortcut-card" onClick={(event) => editMode && event.preventDefault()}>
+            <a
+              href={editMode ? undefined : item.url}
+              className="shortcut-card"
+              onClick={(event) => editMode && event.preventDefault()}
+              title={item.title}
+            >
               <span className="shortcut-icon" style={{ background: item.color }}>{item.icon}</span>
               <span className="shortcut-title">{item.title}</span>
-              <span className="shortcut-arrow">↗</span>
+              <Icon name="external" className="shortcut-arrow" />
             </a>
-            {editMode && <button className="shortcut-delete" onClick={() => onDelete(item.id)} aria-label={`删除 ${item.title}`}><Icon name="close" /></button>}
+            {editMode && (
+              <button className="shortcut-delete" onClick={() => onDelete(item.id)} aria-label={`删除 ${item.title}`}>
+                <Icon name="close" />
+              </button>
+            )}
           </div>
         ))}
+
         <button className="shortcut-card add-shortcut" onClick={onAdd}>
           <span className="shortcut-icon"><Icon name="plus" /></span>
-          <span className="shortcut-title">添加入口</span>
+          <span className="shortcut-title">添加</span>
         </button>
       </div>
     </section>
