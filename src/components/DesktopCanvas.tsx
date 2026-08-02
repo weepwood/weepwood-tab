@@ -11,6 +11,7 @@ import {
 } from '../core/layout'
 import { Icon } from './Icon'
 import { ShortcutIcon } from './ShortcutIcon'
+import { FolderContents } from './FolderContents'
 import { CalendarMini, ClockWidget, CountdownWidget, NotesMini, TasksMini, WeatherWidget, WidgetFrame } from './Widgets'
 import '../styles/free-layout.css'
 
@@ -30,6 +31,8 @@ interface Props {
   onLayoutChange: (itemId: string, layout: DesktopLayout) => void
   onRemoveItem: (item: DesktopItem) => void
   onContextMenu: (item: DesktopItem, x: number, y: number) => void
+  onFolderReorder: (folderId: string, sourceId: string, targetId: string) => void
+  onFolderExtract: (folderId: string, shortcutId: string) => void
   onTasksChange: (tasks: Task[]) => void
   onNotesChange: (value: string) => void
   onWeatherChange: (weather: WeatherSnapshot) => void
@@ -43,6 +46,7 @@ interface PointerInteraction {
   startY: number
   origin: DesktopLayout
   draft: DesktopLayout
+  mergeTargetId: string | null
 }
 
 export function DesktopCanvas({
@@ -61,6 +65,8 @@ export function DesktopCanvas({
   onLayoutChange,
   onRemoveItem,
   onContextMenu,
+  onFolderReorder,
+  onFolderExtract,
   onTasksChange,
   onNotesChange,
   onWeatherChange,
@@ -133,6 +139,7 @@ export function DesktopCanvas({
       startY: event.clientY,
       origin: item.layout,
       draft: item.layout,
+      mergeTargetId: null,
     }
     interactionRef.current = interaction
     setActiveItemId(item.id)
@@ -160,12 +167,14 @@ export function DesktopCanvas({
       setDraftLayout(next)
 
       if (interaction.mode !== 'move') {
+        interaction.mergeTargetId = null
         setMergeTargetId(null)
         return
       }
 
       const source = itemById.get(interaction.itemId)
       if (source?.kind !== 'shortcut') {
+        interaction.mergeTargetId = null
         setMergeTargetId(null)
         return
       }
@@ -173,14 +182,16 @@ export function DesktopCanvas({
       const targetElement = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-desktop-item-id]')
       const targetId = targetElement?.dataset.desktopItemId
       const target = targetId ? itemById.get(targetId) : undefined
-      setMergeTargetId(target && target.id !== source.id && (target.kind === 'shortcut' || target.kind === 'folder') ? target.id : null)
+      const nextTarget = target && target.id !== source.id && (target.kind === 'shortcut' || target.kind === 'folder') ? target.id : null
+      interaction.mergeTargetId = nextTarget
+      setMergeTargetId(nextTarget)
     }
 
     const end = () => {
       const interaction = interactionRef.current
       if (!interaction) return
-      if (interaction.mode === 'move' && mergeTargetId) {
-        onMergeItems(interaction.itemId, mergeTargetId)
+      if (interaction.mode === 'move' && interaction.mergeTargetId) {
+        onMergeItems(interaction.itemId, interaction.mergeTargetId)
       } else {
         onLayoutChange(interaction.itemId, interaction.draft)
       }
@@ -198,7 +209,7 @@ export function DesktopCanvas({
       window.removeEventListener('pointerup', end)
       window.removeEventListener('pointercancel', end)
     }
-  }, [activeItemId, columnStep, itemById, mergeTargetId, onLayoutChange, onMergeItems, rowStep])
+  }, [activeItemId, columnStep, itemById, onLayoutChange, onMergeItems, rowStep])
 
   const layoutStyle = (layout: DesktopLayout): CSSProperties => ({
     left: layout.x * columnStep,
@@ -211,11 +222,11 @@ export function DesktopCanvas({
   const addLayout = findNearestFreeLayout({ x: 0, y: 0, w: 1, h: 1 }, occupiedLayouts)
   const maxBottom = Math.max(5, ...resolvedItems.map((item) => item.layout.y + item.layout.h), addLayout.y + 1)
   const minHeight = maxBottom * rowStep + 36
-
   const folder = folders.find((item) => item.id === openFolderId)
-  const folderShortcuts = folder
-    ? folder.shortcutIds.map((id) => shortcuts.find((shortcut) => shortcut.id === id)).filter(Boolean) as Shortcut[]
-    : []
+
+  useEffect(() => {
+    if (openFolderId && !folder) setOpenFolderId(null)
+  }, [folder, openFolderId])
 
   return (
     <>
@@ -254,7 +265,7 @@ export function DesktopCanvas({
               {currentFolder && (
                 <div className="desktop-shortcut-shell">
                   {editMode && <button className="desktop-remove icon-remove" onClick={() => onRemoveItem(item)}><Icon name="close" /></button>}
-                  <button className="desktop-shortcut folder-shortcut" onClick={() => !editMode && setOpenFolderId(currentFolder.id)}>
+                  <button className="desktop-shortcut folder-shortcut" onClick={() => setOpenFolderId(currentFolder.id)}>
                     <span className={`folder-icon shape-${iconShape}`}>
                       {currentFolder.shortcutIds.slice(0, 4).map((id) => {
                         const child = shortcuts.find((entry) => entry.id === id)
@@ -311,19 +322,15 @@ export function DesktopCanvas({
       </section>
 
       {folder && (
-        <div className="folder-backdrop" onMouseDown={() => setOpenFolderId(null)}>
-          <section className="folder-popover" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="folder-header"><h2>{folder.title}</h2><button onClick={() => setOpenFolderId(null)}><Icon name="close" /></button></div>
-            <div className="folder-grid">
-              {folderShortcuts.map((shortcut) => (
-                <a key={shortcut.id} href={shortcut.url}>
-                  <ShortcutIcon shortcut={shortcut} className={`app-icon shape-${iconShape}`} />
-                  <small>{shortcut.title}</small>
-                </a>
-              ))}
-            </div>
-          </section>
-        </div>
+        <FolderContents
+          folder={folder}
+          shortcuts={shortcuts}
+          iconShape={iconShape}
+          editMode={editMode}
+          onClose={() => setOpenFolderId(null)}
+          onReorder={onFolderReorder}
+          onExtract={onFolderExtract}
+        />
       )}
     </>
   )
