@@ -41,11 +41,19 @@ export interface WidgetInstance {
   config?: Record<string, string | number | boolean>
 }
 
+export interface DesktopLayout {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
 export interface DesktopItem {
   id: string
   workspaceId: WorkspaceId
   kind: 'shortcut' | 'folder' | 'widget'
   refId: string
+  layout?: DesktopLayout
 }
 
 export interface Task {
@@ -80,7 +88,7 @@ export interface WeatherSnapshot {
 }
 
 export interface PersistedState {
-  version: 2
+  version: 3
   activeWorkspace: WorkspaceId
   shortcuts: Shortcut[]
   folders: Folder[]
