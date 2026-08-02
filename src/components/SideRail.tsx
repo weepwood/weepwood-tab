@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import type { Workspace, WorkspaceId } from '../core/types'
+import { APPEARANCE_EVENT, applyWorkspaceAppearance } from '../core/workspaceAppearance'
 import { Icon } from './Icon'
 
 interface Props {
@@ -14,6 +16,13 @@ interface Props {
 }
 
 export function SideRail({ visible, editMode, workspaces, activeWorkspace, onWorkspaceChange, onAdd, onWallpaper, onSettings, onEdit }: Props) {
+  useEffect(() => {
+    const apply = () => applyWorkspaceAppearance(activeWorkspace)
+    apply()
+    window.addEventListener(APPEARANCE_EVENT, apply)
+    return () => window.removeEventListener(APPEARANCE_EVENT, apply)
+  }, [activeWorkspace])
+
   if (!visible) return null
   return (
     <aside className="side-rail" aria-label="快捷控制栏">
