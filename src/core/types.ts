@@ -88,7 +88,7 @@ export interface WeatherSnapshot {
 }
 
 export interface PersistedState {
-  version: 3
+  version: 2
   activeWorkspace: WorkspaceId
   shortcuts: Shortcut[]
   folders: Folder[]
