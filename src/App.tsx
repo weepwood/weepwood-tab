@@ -123,6 +123,63 @@ export default function App() {
     })
   }
 
+  const reorderFolderShortcut = (folderId: string, sourceId: string, targetId: string) => {
+    setState((current) => ({
+      ...current,
+      folders: current.folders.map((folder) => {
+        if (folder.id !== folderId) return folder
+        const sourceIndex = folder.shortcutIds.indexOf(sourceId)
+        const targetIndex = folder.shortcutIds.indexOf(targetId)
+        if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return folder
+        const shortcutIds = [...folder.shortcutIds]
+        const [moved] = shortcutIds.splice(sourceIndex, 1)
+        if (!moved) return folder
+        shortcutIds.splice(targetIndex, 0, moved)
+        return { ...folder, shortcutIds }
+      }),
+    }))
+  }
+
+  const extractFolderShortcut = (folderId: string, shortcutId: string) => {
+    setState((current) => {
+      const folder = current.folders.find((entry) => entry.id === folderId)
+      const folderItem = current.desktopItems.find((entry) => entry.kind === 'folder' && entry.refId === folderId)
+      if (!folder || !folderItem || !folder.shortcutIds.includes(shortcutId)) return current
+
+      const remaining = folder.shortcutIds.filter((id) => id !== shortcutId)
+      let folders = current.folders
+      let desktopItems = [...current.desktopItems]
+
+      if (remaining.length <= 1) {
+        folders = current.folders.filter((entry) => entry.id !== folderId)
+        desktopItems = desktopItems.filter((entry) => entry.id !== folderItem.id)
+        const remainingId = remaining[0]
+        if (remainingId) {
+          desktopItems.push({
+            id: desktopItems.some((entry) => entry.id === `di-${remainingId}`) ? `di-${crypto.randomUUID()}` : `di-${remainingId}`,
+            workspaceId: folder.workspaceId,
+            kind: 'shortcut',
+            refId: remainingId,
+            layout: folderItem.layout,
+          })
+        }
+      } else {
+        folders = current.folders.map((entry) => entry.id === folderId ? { ...entry, shortcutIds: remaining } : entry)
+      }
+
+      const extractedId = desktopItems.some((entry) => entry.id === `di-${shortcutId}`) ? `di-${crypto.randomUUID()}` : `di-${shortcutId}`
+      desktopItems.push({
+        id: extractedId,
+        workspaceId: folder.workspaceId,
+        kind: 'shortcut',
+        refId: shortcutId,
+        layout: getNextDesktopLayout(folder.workspaceId, 'shortcut', desktopItems, current.widgets),
+      })
+
+      return { ...current, folders, desktopItems }
+    })
+  }
+
   const removeItem = (item: DesktopItem) => {
     setState((current) => ({
       ...current,
@@ -177,6 +234,23 @@ export default function App() {
         : [...current.dockShortcutIds, shortcutId],
     }))
     setContextTarget(null)
+  }
+
+  const reorderDock = (sourceId: string, targetId: string) => {
+    setState((current) => {
+      const sourceIndex = current.dockShortcutIds.indexOf(sourceId)
+      const targetIndex = current.dockShortcutIds.indexOf(targetId)
+      if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return current
+      const dockShortcutIds = [...current.dockShortcutIds]
+      const [moved] = dockShortcutIds.splice(sourceIndex, 1)
+      if (!moved) return current
+      dockShortcutIds.splice(targetIndex, 0, moved)
+      return { ...current, dockShortcutIds }
+    })
+  }
+
+  const removeFromDock = (shortcutId: string) => {
+    setState((current) => ({ ...current, dockShortcutIds: current.dockShortcutIds.filter((id) => id !== shortcutId) }))
   }
 
   const resizeWidget = (widgetId: string) => {
@@ -262,6 +336,8 @@ export default function App() {
           onLayoutChange={updateItemLayout}
           onRemoveItem={removeItem}
           onContextMenu={(item, x, y) => setContextTarget({ item, x, y })}
+          onFolderReorder={reorderFolderShortcut}
+          onFolderExtract={extractFolderShortcut}
           onTasksChange={(tasks) => setState((current) => ({ ...current, tasks }))}
           onNotesChange={(value) => setState((current) => ({ ...current, notes: { ...current.notes, [current.activeWorkspace]: value } }))}
           onWeatherChange={updateWeather}
@@ -276,10 +352,13 @@ export default function App() {
       <BottomDock
         visible={state.settings.showDock}
         magnify={state.settings.dockMagnify}
+        editMode={editMode}
         shortcuts={state.shortcuts}
         shortcutIds={state.dockShortcutIds}
         iconShape={state.settings.iconShape}
         onAdd={() => setAddOpen(true)}
+        onReorder={reorderDock}
+        onRemove={removeFromDock}
       />
 
       {contextTarget && (
