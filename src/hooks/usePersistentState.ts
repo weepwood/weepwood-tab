@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { initialState } from '../data/defaults'
+import { normalizeDesktopLayouts } from '../core/layout'
 import type { PersistedState } from '../core/types'
 
 const STORAGE_KEY = 'weepwood-tab-state-v2'
@@ -11,16 +12,22 @@ function cloneInitialState(): PersistedState {
 
 function normalizeState(value: unknown): PersistedState {
   const fallback = cloneInitialState()
-  if (!value || typeof value !== 'object') return fallback
+  if (!value || typeof value !== 'object') {
+    return { ...fallback, desktopItems: normalizeDesktopLayouts(fallback.desktopItems, fallback.widgets) }
+  }
+
   const parsed = value as Partial<PersistedState>
+  const widgets = Array.isArray(parsed.widgets) ? parsed.widgets : fallback.widgets
+  const desktopItems = Array.isArray(parsed.desktopItems) ? parsed.desktopItems : fallback.desktopItems
+
   return {
     ...fallback,
     ...parsed,
     version: 2,
     shortcuts: Array.isArray(parsed.shortcuts) ? parsed.shortcuts : fallback.shortcuts,
     folders: Array.isArray(parsed.folders) ? parsed.folders : fallback.folders,
-    widgets: Array.isArray(parsed.widgets) ? parsed.widgets : fallback.widgets,
-    desktopItems: Array.isArray(parsed.desktopItems) ? parsed.desktopItems : fallback.desktopItems,
+    widgets,
+    desktopItems: normalizeDesktopLayouts(desktopItems, widgets),
     dockShortcutIds: Array.isArray(parsed.dockShortcutIds) ? parsed.dockShortcutIds : fallback.dockShortcutIds,
     tasks: Array.isArray(parsed.tasks) ? parsed.tasks : fallback.tasks,
     notes: { ...fallback.notes, ...(parsed.notes ?? {}) },
@@ -31,10 +38,10 @@ function normalizeState(value: unknown): PersistedState {
 function loadState(): PersistedState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_KEY)
-    if (!raw) return cloneInitialState()
+    if (!raw) return normalizeState(cloneInitialState())
     return normalizeState(JSON.parse(raw))
   } catch {
-    return cloneInitialState()
+    return normalizeState(cloneInitialState())
   }
 }
 
@@ -48,7 +55,7 @@ export function usePersistentState() {
   const reset = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(LEGACY_KEY)
-    setState(cloneInitialState())
+    setState(normalizeState(cloneInitialState()))
   }, [])
 
   return { state, setState, reset }
