@@ -1,6 +1,12 @@
 import { useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
-import type { DesktopItem, Folder, Shortcut, WeatherSnapshot, WidgetSize, WidgetType } from './core/types'
+import type { DesktopItem, DesktopLayout, Folder, Shortcut, WeatherSnapshot, WidgetSize, WidgetType } from './core/types'
+import {
+  findNearestFreeLayout,
+  getNextDesktopLayout,
+  getWidgetDimensions,
+  widgetSizeFromLayout,
+} from './core/layout'
 import { workspaces } from './data/defaults'
 import { useClock } from './hooks/useClock'
 import { usePersistentState } from './hooks/usePersistentState'
@@ -56,15 +62,11 @@ export default function App() {
   const editingShortcut = state.shortcuts.find((shortcut) => shortcut.id === editingShortcutId)
   const editingFolder = state.folders.find((folder) => folder.id === editingFolderId)
 
-  const dropItem = (sourceId: string, targetId: string) => {
+  const mergeItems = (sourceId: string, targetId: string) => {
     setState((current) => {
-      const sourceIndex = current.desktopItems.findIndex((item) => item.id === sourceId)
-      const targetIndex = current.desktopItems.findIndex((item) => item.id === targetId)
-      if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return current
-
-      const source = current.desktopItems[sourceIndex]
-      const target = current.desktopItems[targetIndex]
-      if (!source || !target || source.workspaceId !== target.workspaceId) return current
+      const source = current.desktopItems.find((item) => item.id === sourceId)
+      const target = current.desktopItems.find((item) => item.id === targetId)
+      if (!source || !target || source.id === target.id || source.workspaceId !== target.workspaceId) return current
 
       if (source.kind === 'shortcut' && target.kind === 'shortcut') {
         const sourceShortcut = current.shortcuts.find((shortcut) => shortcut.id === source.refId)
@@ -79,12 +81,12 @@ export default function App() {
           shortcutIds: [targetShortcut.id, sourceShortcut.id],
         }
         const desktopItems = current.desktopItems.filter((item) => item.id !== source.id && item.id !== target.id)
-        const insertAt = Math.max(0, targetIndex - (sourceIndex < targetIndex ? 1 : 0))
-        desktopItems.splice(insertAt, 0, {
+        desktopItems.push({
           id: `di-${folderId}`,
           workspaceId: source.workspaceId,
           kind: 'folder',
           refId: folderId,
+          layout: target.layout ?? source.layout,
         })
         return { ...current, folders: [...current.folders, folder], desktopItems }
       }
@@ -101,12 +103,23 @@ export default function App() {
         }
       }
 
-      const desktopItems = [...current.desktopItems]
-      const [moved] = desktopItems.splice(sourceIndex, 1)
-      if (!moved) return current
-      const adjustedTarget = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
-      desktopItems.splice(adjustedTarget, 0, moved)
-      return { ...current, desktopItems }
+      return current
+    })
+  }
+
+  const updateItemLayout = (itemId: string, requested: DesktopLayout) => {
+    setState((current) => {
+      const item = current.desktopItems.find((entry) => entry.id === itemId)
+      if (!item) return current
+      const occupied = current.desktopItems
+        .filter((entry) => entry.workspaceId === item.workspaceId && entry.id !== itemId && entry.layout)
+        .map((entry) => entry.layout as DesktopLayout)
+      const layout = findNearestFreeLayout(requested, occupied)
+      const desktopItems = current.desktopItems.map((entry) => entry.id === itemId ? { ...entry, layout } : entry)
+      const widgets = item.kind === 'widget'
+        ? current.widgets.map((widget) => widget.id === item.refId ? { ...widget, size: widgetSizeFromLayout(layout) } : widget)
+        : current.widgets
+      return { ...current, desktopItems, widgets }
     })
   }
 
@@ -128,6 +141,7 @@ export default function App() {
         workspaceId: shortcut.workspaceId,
         kind: 'shortcut',
         refId: shortcut.id,
+        layout: getNextDesktopLayout(shortcut.workspaceId, 'shortcut', current.desktopItems, current.widgets),
       }],
     }))
   }
@@ -142,6 +156,7 @@ export default function App() {
         workspaceId: current.activeWorkspace,
         kind: 'widget',
         refId: id,
+        layout: getNextDesktopLayout(current.activeWorkspace, 'widget', current.desktopItems, current.widgets, size),
       }],
     }))
   }
@@ -165,14 +180,24 @@ export default function App() {
   }
 
   const resizeWidget = (widgetId: string) => {
-    setState((current) => ({
-      ...current,
-      widgets: current.widgets.map((widget) => {
-        if (widget.id !== widgetId) return widget
-        const index = sizeOrder.indexOf(widget.size)
-        return { ...widget, size: sizeOrder[(index + 1) % sizeOrder.length] ?? 'small' }
-      }),
-    }))
+    setState((current) => {
+      const widget = current.widgets.find((entry) => entry.id === widgetId)
+      const item = current.desktopItems.find((entry) => entry.kind === 'widget' && entry.refId === widgetId)
+      if (!widget || !item) return current
+      const index = sizeOrder.indexOf(widget.size)
+      const size = sizeOrder[(index + 1) % sizeOrder.length] ?? 'small'
+      const dimensions = getWidgetDimensions(size)
+      const requested = { x: item.layout?.x ?? 0, y: item.layout?.y ?? 0, ...dimensions }
+      const occupied = current.desktopItems
+        .filter((entry) => entry.workspaceId === item.workspaceId && entry.id !== item.id && entry.layout)
+        .map((entry) => entry.layout as DesktopLayout)
+      const layout = findNearestFreeLayout(requested, occupied)
+      return {
+        ...current,
+        widgets: current.widgets.map((entry) => entry.id === widgetId ? { ...entry, size } : entry),
+        desktopItems: current.desktopItems.map((entry) => entry.id === item.id ? { ...entry, layout } : entry),
+      }
+    })
     setContextTarget(null)
   }
 
@@ -233,7 +258,8 @@ export default function App() {
           now={now}
           editMode={editMode}
           iconShape={state.settings.iconShape}
-          onDropItem={dropItem}
+          onMergeItems={mergeItems}
+          onLayoutChange={updateItemLayout}
           onRemoveItem={removeItem}
           onContextMenu={(item, x, y) => setContextTarget({ item, x, y })}
           onTasksChange={(tasks) => setState((current) => ({ ...current, tasks }))}
