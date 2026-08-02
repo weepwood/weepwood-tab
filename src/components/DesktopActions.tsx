@@ -17,15 +17,17 @@ interface MenuProps {
   folder?: Folder
   widget?: WidgetInstance
   pinned: boolean
+  locked: boolean
   onClose: () => void
   onOpen: () => void
   onEdit: () => void
   onToggleDock: () => void
+  onToggleLock: () => void
   onResize: () => void
   onRemove: () => void
 }
 
-export function DesktopContextMenu({ target, shortcut, folder, widget, pinned, onClose, onOpen, onEdit, onToggleDock, onResize, onRemove }: MenuProps) {
+export function DesktopContextMenu({ target, shortcut, folder, widget, pinned, locked, onClose, onOpen, onEdit, onToggleDock, onToggleLock, onResize, onRemove }: MenuProps) {
   useEffect(() => {
     const close = () => onClose()
     const keyboard = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
@@ -38,7 +40,7 @@ export function DesktopContextMenu({ target, shortcut, folder, widget, pinned, o
   }, [onClose])
 
   const left = Math.min(target.x, window.innerWidth - 220)
-  const top = Math.min(target.y, window.innerHeight - 260)
+  const top = Math.min(target.y, window.innerHeight - 310)
 
   return (
     <div className="desktop-context-menu" style={{ left, top }} onPointerDown={(event) => event.stopPropagation()}>
@@ -49,7 +51,8 @@ export function DesktopContextMenu({ target, shortcut, folder, widget, pinned, o
       {shortcut && <button onClick={onOpen}><Icon name="external" />打开</button>}
       {(shortcut || folder) && <button onClick={onEdit}><Icon name="edit" />编辑</button>}
       {shortcut && <button onClick={onToggleDock}><Icon name="dock" />{pinned ? '从 Dock 取消固定' : '固定到 Dock'}</button>}
-      {widget && <button onClick={onResize}><Icon name="layout" />切换组件尺寸</button>}
+      <button onClick={onToggleLock}><span className="context-emoji" aria-hidden="true">{locked ? '🔓' : '🔒'}</span>{locked ? '解锁位置' : '锁定位置'}</button>
+      {widget && !locked && <button onClick={onResize}><Icon name="layout" />切换组件尺寸</button>}
       <span className="context-divider" />
       <button className="danger" onClick={onRemove}><Icon name="trash" />从桌面移除</button>
     </div>
